@@ -1474,16 +1474,16 @@ function NTAMode({user,dark,onExit,onTestComplete,completedTests,onStoreTest}){
       const paper = parts[2].toUpperCase(); // "P1" or "P2"
       const shift = paper==="P1"?"Morning":"Evening";
 
-      const url = new URL(`${SB_URL}/rest/v1/questions`);
-      url.searchParams.set("select","*");
-      url.searchParams.set("year","eq."+year);
-      url.searchParams.set("shift","eq."+shift);
-      url.searchParams.set("exam","eq.JEE Advanced");
-      url.searchParams.set("is_active","eq.true");
-      url.searchParams.set("is_verified","eq.true");
-      url.searchParams.set("order","qno.asc");
-
-      const r = await fetch(url, {
+      const params = [
+        "select=*",
+        `year=eq.${year}`,
+        `shift=eq.${shift}`,
+        "exam=eq.JEE%20Advanced",
+        "is_active=eq.true",
+        "is_verified=eq.true",
+        "order=qno.asc",
+      ].join("&");
+      const r = await fetch(`${SB_URL}/rest/v1/questions?${params}`, {
         headers:{"apikey":SB_ANON,"Authorization":"Bearer "+SB_ANON}
       });
       if(!r.ok) throw new Error(await r.text());
@@ -1943,16 +1943,17 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
   async function generatePYQ(){
     setCurrentPyq({loading:true});
     try {
-      const url=new URL(`${SB_URL}/rest/v1/questions`);
-      url.searchParams.set("select","id,subject,topic,question_text,option_a,option_b,option_c,option_d,correct,solution,difficulty,diagram_url,answer_type");
-      url.searchParams.set("subject","eq."+pyqSubject);
-      url.searchParams.set("exam","eq.JEE Advanced");
-      url.searchParams.set("is_active","eq.true");
-      url.searchParams.set("is_verified","eq.true");
-      if(pyqTopic) url.searchParams.set("topic","eq."+pyqTopic);
-      if(pyqDiff!=="All") url.searchParams.set("difficulty","eq."+pyqDiff);
-      url.searchParams.set("limit","50");
-      const r=await fetch(url,{headers:{"apikey":SB_ANON,"Authorization":"Bearer "+SB_ANON}});
+      let params=[
+        "select=id,subject,topic,question_text,option_a,option_b,option_c,option_d,correct,solution,difficulty,diagram_url,answer_type",
+        "subject=eq."+pyqSubject,
+        "exam=eq.JEE%20Advanced",
+        "is_active=eq.true",
+        "is_verified=eq.true",
+        "limit=50",
+      ];
+      if(pyqTopic) params.push("topic=eq."+encodeURIComponent(pyqTopic));
+      if(pyqDiff!=="All") params.push("difficulty=eq."+pyqDiff);
+      const r=await fetch(`${SB_URL}/rest/v1/questions?${params.join("&")}`,{headers:{"apikey":SB_ANON,"Authorization":"Bearer "+SB_ANON}});
       if(!r.ok) throw new Error(await r.text());
       let pool=await r.json();
       if(pool.length===0){
