@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+console.log("ENV:", import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
 const SB_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SB_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
