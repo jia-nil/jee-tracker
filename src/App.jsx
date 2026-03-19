@@ -366,21 +366,6 @@ const PAPERS = [
 // This is how the Analytics tab and AI coach know which chapter you got wrong.
 // Supabase schema: { id, paper_id, section, qno, type, text, options, correct, solution, topic, difficulty }
 // ─────────────────────────────────────────────────────────────────────────────
-const PHYS_TOPICS  = ["Kinematics", "Laws of Motion", "Work & Energy", "Rotational Motion", "Gravitation", "Thermodynamics", "Kinetic Theory", "Oscillations", "Waves", "Electrostatics", "Current Electricity", "Magnetism", "EMI & AC", "Alternating Current", "Optics", "Modern Physics", "Semiconductors", "Communication", "Optics", "EMI & AC"];
-const CHEM_TOPICS  = ["Mole Concept", "Atomic Structure", "Chemical Bonding", "Equilibrium", "Thermodynamics", "Electrochemistry", "Chemical Kinetics", "Solutions", "Solid State", "Surface Chemistry", "Organic Basics", "Hydrocarbons", "Haloalkanes", "Alcohols", "Aldehydes", "Carboxylic Acids", "Amines", "Biomolecules", "Polymers", "Coordination Compounds"];
-const MATH_TOPICS  = ["Limits", "Continuity & Differentiability", "Applications of Derivatives", "Integration", "Differential Equations", "Vectors", "3D Geometry", "Matrices", "Determinants", "Probability", "Statistics", "Complex Numbers", "Sequences & Series", "Straight Lines", "Conic Sections", "Trigonometry", "Inverse Trig", "Permutations", "Binomial Theorem", "Sets & Functions"];
-
-const PLACEHOLDER_QUESTIONS = [
-  // PHYSICS — 20 MCQ + 5 Numerical
-  ...Array.from({length:20},(_,i)=>({id:`PH${i+1}`, section:"Physics", qno:i+1, type:"mcq", topic:PHYS_TOPICS[i%PHYS_TOPICS.length], text:`Physics MCQ Q${i+1} (${PHYS_TOPICS[i%PHYS_TOPICS.length]}) — add real question here.`, options:{A:"Option A",B:"Option B",C:"Option C",D:"Option D"}, correct:"A", solution:"Add solution here."})),
-  ...Array.from({length:5},(_,i)=>({id:`PHN${i+1}`, section:"Physics", qno:21+i, type:"numerical", topic:PHYS_TOPICS[(i+15)%PHYS_TOPICS.length], text:`Physics Numerical Q${21+i} (${PHYS_TOPICS[(i+15)%PHYS_TOPICS.length]}) — enter integer answer.`, options:null, correct:"42", solution:"Add solution here."})),
-  // CHEMISTRY — 20 MCQ + 5 Numerical
-  ...Array.from({length:20},(_,i)=>({id:`CH${i+1}`, section:"Chemistry", qno:i+1, type:"mcq", topic:CHEM_TOPICS[i%CHEM_TOPICS.length], text:`Chemistry MCQ Q${i+1} (${CHEM_TOPICS[i%CHEM_TOPICS.length]}) — add real question here.`, options:{A:"Option A",B:"Option B",C:"Option C",D:"Option D"}, correct:"B", solution:"Add solution here."})),
-  ...Array.from({length:5},(_,i)=>({id:`CHN${i+1}`, section:"Chemistry", qno:21+i, type:"numerical", topic:CHEM_TOPICS[(i+15)%CHEM_TOPICS.length], text:`Chemistry Numerical Q${21+i} (${CHEM_TOPICS[(i+15)%CHEM_TOPICS.length]}) — enter integer answer.`, options:null, correct:"7", solution:"Add solution here."})),
-  // MATHEMATICS — 20 MCQ + 5 Numerical
-  ...Array.from({length:20},(_,i)=>({id:`MA${i+1}`, section:"Mathematics", qno:i+1, type:"mcq", topic:MATH_TOPICS[i%MATH_TOPICS.length], text:`Mathematics MCQ Q${i+1} (${MATH_TOPICS[i%MATH_TOPICS.length]}) — add real question here.`, options:{A:"Option A",B:"Option B",C:"Option C",D:"Option D"}, correct:"C", solution:"Add solution here."})),
-  ...Array.from({length:5},(_,i)=>({id:`MAN${i+1}`, section:"Mathematics", qno:21+i, type:"numerical", topic:MATH_TOPICS[(i+15)%MATH_TOPICS.length], text:`Mathematics Numerical Q${21+i} (${MATH_TOPICS[(i+15)%MATH_TOPICS.length]}) — enter integer answer.`, options:null, correct:"12", solution:"Add solution here."})),
-];
 
 const SECTIONS = ["Physics","Chemistry","Mathematics"];
 const SEC_COLOR = {Physics:"#e8845c", Chemistry:"#5eaa8a", Mathematics:"#7b8ec8"};
