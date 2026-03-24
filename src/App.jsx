@@ -5,213 +5,183 @@ const SB_URL  = "https://tlmazdrnndylafhfxsrc.supabase.co";
 const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsbWF6ZHJubmR5bGFmaGZ4c3JjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1ODEwNjAsImV4cCI6MjA4ODE1NzA2MH0.gGPknDEdaGfzDb2JJ2amEY9b33jlbTY3brvbbhvvIWg"; // ← paste your anon key here before committing
 // ─────────────────────────────────────────────────────────────────────────────
 
-const SUBJECT_COLORS = { Physics:"#e8845c", Chemistry:"#5eaa8a", Mathematics:"#7b8ec8" };
-const TOPICS = {
-  Physics:{
-    "11th":["Kinematics","Laws of Motion","Work & Energy","Rotational Motion","Gravitation","Thermodynamics","Waves","Oscillations","Properties of Matter","Kinetic Theory"],
-    "12th":["Electrostatics","Current Electricity","Magnetism","EMI & AC","Optics","Modern Physics","Semiconductors","Dual Nature","Atoms & Nuclei","Communication"],
-    dropper:["Kinematics","Laws of Motion","Work & Energy","Rotational Motion","Gravitation","Thermodynamics","Waves","Oscillations","Electrostatics","Current Electricity","Magnetism","EMI & AC","Optics","Modern Physics","Semiconductors"]
-  },
-  Chemistry:{
-    "11th":["Mole Concept","Atomic Structure","Chemical Bonding","States of Matter","Thermodynamics","Equilibrium","Redox","Organic Basics","Hydrocarbons","s-Block Elements"],
-    "12th":["Electrochemistry","Chemical Kinetics","Solutions","Surface Chemistry","p-Block Elements","d-Block Elements","Coordination Compounds","Haloalkanes","Alcohols","Amines"],
-    dropper:["Mole Concept","Atomic Structure","Chemical Bonding","Thermodynamics","Equilibrium","Electrochemistry","Chemical Kinetics","Coordination Compounds","Organic Chemistry","p-Block Elements"]
-  },
-  Mathematics:{
-    "11th":["Sets & Functions","Trigonometry","Sequences & Series","Straight Lines","Conic Sections","Permutations","Binomial Theorem","Limits","Statistics","Probability"],
-    "12th":["Matrices","Determinants","Continuity & Differentiability","Applications of Derivatives","Integrals","Differential Equations","Vectors","3D Geometry","Probability","Linear Programming"],
-    dropper:["Calculus","Algebra","Coordinate Geometry","Trigonometry","Vectors & 3D","Probability","Matrices","Complex Numbers","Sequences & Series","Differential Equations"]
-  }
-};
-// ── JEE Chapter Weightage (H=High, M=Medium, L=Low) based on JEE Advanced history ──
-// H = 4-6 questions historically, M = 2-3 questions, L = 0-1 questions per year
-const JEE_WEIGHTAGE = {
-  Physics:{
-    "Kinematics":"M","Laws of Motion":"H","Work & Energy":"H","Rotational Motion":"H",
-    "Gravitation":"M","Thermodynamics":"H","Waves":"M","Oscillations":"H",
-    "Properties of Matter":"L","Kinetic Theory":"M",
-    "Electrostatics":"H","Current Electricity":"H","Magnetism":"H","EMI & AC":"H",
-    "Optics":"H","Modern Physics":"H","Semiconductors":"M","Dual Nature":"M",
-    "Atoms & Nuclei":"M","Communication":"L",
-  },
-  Chemistry:{
-    "Mole Concept":"H","Atomic Structure":"H","Chemical Bonding":"H","States of Matter":"M",
-    "Thermodynamics":"H","Equilibrium":"H","Redox":"M","Organic Basics":"H",
-    "Hydrocarbons":"H","s-Block Elements":"L",
-    "Electrochemistry":"H","Chemical Kinetics":"H","Solutions":"M","Surface Chemistry":"L",
-    "p-Block Elements":"H","d-Block Elements":"H","Coordination Compounds":"H",
-    "Haloalkanes":"M","Alcohols":"M","Amines":"M",
-    "Organic Chemistry":"H",
-  },
-  Mathematics:{
-    "Sets & Functions":"L","Trigonometry":"H","Sequences & Series":"M","Straight Lines":"M",
-    "Conic Sections":"H","Permutations":"M","Binomial Theorem":"M","Limits":"H",
-    "Statistics":"L","Probability":"H",
-    "Matrices":"M","Determinants":"M","Continuity & Differentiability":"H",
-    "Applications of Derivatives":"H","Integrals":"H","Differential Equations":"H",
-    "Vectors":"H","3D Geometry":"H","Linear Programming":"L",
-    "Calculus":"H","Algebra":"H","Coordinate Geometry":"H","Vectors & 3D":"H",
-    "Complex Numbers":"H","Complex Numbers":"H","Differential Equations":"H",
-  }
-};
-const WEIGHT_SCORE={"H":3,"M":2,"L":1};
+// ── Math renderer — proper stacked fractions via JSX ─────────────────────────
+// Parses a LaTeX-subset string into tokens, renders as React elements.
+// Supports: \frac{}{}, \sqrt{}, ^{}, _{}, Greek, trig inverses, operators.
 
-// ── Real NTA JEE Question Bank ────────────────────────────────────────────────
-// Sourced from JEE Advanced papers (2019–2024)
+function parseMath(raw) {
+  // Returns array of token objects: {t:"txt"|"frac"|"sqrt"|"sup"|"sub", ...}
+  const out = [];
+  let i = 0;
+  const BSRE = /^\\([a-zA-Z]+|\^)/;
 
-const CLASSES=[{id:"11th",label:"Class 11th",sub:"year one. i'll be watching.",icon:"①"},{id:"12th",label:"Class 12th",sub:"two exams. one villain arc. i'm in.",icon:"②"},{id:"dropper",label:"Dropper",sub:"you came back. i noticed.",icon:"◈"}];
-const TABS=[{id:"overview",label:"Overview",icon:"⌂"},{id:"coach",label:"Analytics",icon:"👁"},{id:"goals",label:"today's goals",icon:"◎"},{id:"pyq",label:"Practice",icon:"◈"},{id:"sessions",label:"Sessions",icon:"◷"},{id:"streaks",label:"Streaks",icon:"🔥"}];
-const STREAK_MILESTONES=[{days:1,icon:"🌱",label:"First Day"},{days:3,icon:"🔥",label:"On Fire"},{days:5,icon:"⚡",label:"5 days"},{days:7,icon:"🌟",label:"7 days"},{days:10,icon:"💪",label:"10 days"},{days:15,icon:"🏅",label:"14 days"},{days:21,icon:"🎯",label:"21 days"},{days:30,icon:"🏆",label:"30 days"},{days:50,icon:"💎",label:"Diamond"},{days:100,icon:"👑",label:"Century"}];
-
-const fmt  = m=>{if(m==null||m<0)return"0m";if(m===0)return"0m";return m<60?m+"m":Math.floor(m/60)+"h"+(m%60>0?" "+m%60+"m":"");};const fmtT = s=>{const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${h}:${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;};
-const today= ()=>new Date().toISOString().split("T")[0];
-function calcStreak(sessions){const days=[...new Set(sessions.map(s=>s.date))].sort().reverse();if(!days.length)return 0;let streak=0,cur=new Date();cur.setHours(0,0,0,0);for(const d of days){const dd=new Date(d);dd.setHours(0,0,0,0);if(Math.round((cur-dd)/86400000)<=1){streak++;cur=dd;}else break;}return streak;}
-
-const THEME={
-  // ── DARK — deep ink, warm cream text, one bold accent
-  dark:{
-    bg:"#0e0d0b",       // near-black with warmth
-    sb:"#0a0908",       // sidebar: even deeper
-    card:"#161410",     // slightly lifted card
-    hover:"#1d1b17",    // hover state
-    b:"rgba(255,249,235,0.07)",   // warm white border
-    bs:"rgba(255,249,235,0.13)",
-    t:"#f5f0e8",        // warm cream
-    t2:"#b8ae9f",       // mid tone
-    t3:"#6e6659",       // muted
-    t4:"#3a362f",       // very muted
-    sm:"#4a4640",       // sidebar muted
-    sa:"#1d1b17",       // sidebar active bg
-    sab:"rgba(255,249,235,0.06)",
-    inp:"#161410",
-    inpb:"rgba(255,249,235,0.07)",
-    tag:"#1d1b17",
-    a1:"#e8723c",       // slothr orange — warmer, more saturated
-    a2:"#4d9e78",       // muted green
-    a3:"#7a8fc2",       // slate blue
-    danger:"#c95c5c",
-    gold:"#d4a843",
-    sh1:"#161410",sh2:"#1d1b17",
-    div:"rgba(255,249,235,0.04)"
-  },
-  // ── LIGHT — warm ivory paper, ink type
-  light:{
-    bg:"#f7f4ee",       // warm ivory
-    sb:"#f0ece3",       // sidebar: slightly deeper ivory
-    card:"#ffffff",
-    hover:"#f0ece3",
-    b:"rgba(30,22,8,0.08)",
-    bs:"rgba(30,22,8,0.14)",
-    t:"#1a1510",        // warm near-black ink
-    t2:"#5a5044",
-    t3:"#9a8f82",
-    t4:"#c4b9aa",
-    sm:"#c4b9aa",
-    sa:"#e8e2d6",
-    sab:"rgba(30,22,8,0.05)",
-    inp:"#f0ece3",
-    inpb:"rgba(30,22,8,0.09)",
-    tag:"#ede8df",
-    a1:"#d4612a",       // ink-burnt orange
-    a2:"#3d8a63",
-    a3:"#5b6fa8",
-    danger:"#b84a4a",
-    gold:"#a8821a",
-    sh1:"#ede8df",sh2:"#e4ddd1",
-    div:"rgba(30,22,8,0.05)"
-  }
-};
-
-// ── Premium Select Component ──────────────────────────────────────────────────
-function Select({value,onChange,options,placeholder,disabled,d,minWidth}){
-  const [open,setOpen]=useState(false);
-  const [hov,setHov]=useState(null);
-  const ref=useRef(null);
-  const listRef=useRef(null);
-  useEffect(()=>{
-    const fn=e=>{if(ref.current&&!ref.current.contains(e.target))setOpen(false);};
-    document.addEventListener("mousedown",fn);
-    return()=>document.removeEventListener("mousedown",fn);
-  },[]);
-  // scroll selected item into view
-  useEffect(()=>{
-    if(open&&listRef.current){
-      const active=listRef.current.querySelector("[data-active='true']");
-      if(active)active.scrollIntoView({block:"nearest"});
+  function readBraced(from) {
+    // reads {content} starting at from, returns [content, endIndex]
+    if (raw[from] !== '{') return ['', from];
+    let depth = 1, j = from + 1, buf = '';
+    while (j < raw.length && depth > 0) {
+      if (raw[j] === '{') depth++;
+      else if (raw[j] === '}') depth--;
+      if (depth > 0) buf += raw[j];
+      j++;
     }
-  },[open]);
-  const selected=options.find(o=>(o.value!==undefined?o.value:o)===value);
-  const label=selected?(selected.label||selected):placeholder||"Select…";
-  const isDark=d.bg==="#111110";
-  return(
-    <div ref={ref} style={{position:"relative",userSelect:"none",minWidth:minWidth||120}}>
-      {/* Trigger */}
-      <div
-        onClick={()=>!disabled&&setOpen(p=>!p)}
-        style={{
-          display:"flex",alignItems:"center",justifyContent:"space-between",
-          padding:"9px 12px 9px 14px",borderRadius:3,
-          border:"1px solid "+(open?(d.a1+"60"):disabled?d.b:d.inpb),
-          background:disabled?d.tag:open?(isDark?"#1e1e1c":"#fff"):d.inp,
-          cursor:disabled?"not-allowed":"pointer",
-          fontSize:13,color:value||value===""?d.t:d.t4,
-          boxShadow:open?`0 0 0 3px ${d.a1}14,0 2px 8px rgba(0,0,0,.12)`:"0 1px 2px rgba(0,0,0,.06)",
-          transition:"border-color .15s,box-shadow .18s,background .15s",
-          gap:8,whiteSpace:"nowrap",overflow:"hidden"
-        }}>
-        <span style={{overflow:"hidden",textOverflow:"ellipsis",flex:1,fontWeight:value&&value!==""?450:400}}>{label}</span>
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{flexShrink:0,transform:open?"rotate(180deg)":"rotate(0deg)",transition:"transform .22s cubic-bezier(.16,1,.3,1)",opacity:disabled?.3:.55}}>
-          <path d="M3 5l4 4 4-4" stroke={d.t} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-      </div>
-      {/* Dropdown */}
-      {open&&(
-        <div ref={listRef} style={{
-          position:"absolute",top:"calc(100% + 6px)",left:0,right:0,
-          background:isDark?"rgba(22,22,20,0.97)":"rgba(255,255,255,0.97)",
-          backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",
-          border:`1px solid ${isDark?"rgba(255,255,255,0.1)":"rgba(0,0,0,0.09)"}`,
-          borderRadius:4,
-          boxShadow:isDark
-            ?"0 16px 48px rgba(0,0,0,.55),0 4px 12px rgba(0,0,0,.3),inset 0 1px 0 rgba(255,255,255,0.06)"
-            :"0 12px 40px rgba(0,0,0,.14),0 4px 12px rgba(0,0,0,.07),inset 0 1px 0 rgba(255,255,255,0.9)",
-          zIndex:9999,overflow:"hidden",maxHeight:232,overflowY:"auto",
-          animation:"selIn .16s cubic-bezier(.16,1,.3,1)"
-        }}>
-          {options.map((opt,i)=>{
-            const v=opt.value!==undefined?opt.value:opt;
-            const l=opt.label||opt;
-            const active=v===value;
-            const isHov=hov===i;
-            return(
-              <div
-                key={i}
-                data-active={active}
-                onMouseEnter={()=>setHov(i)}
-                onMouseLeave={()=>setHov(null)}
-                onClick={()=>{onChange(v);setOpen(false);setHov(null);}}
-                style={{
-                  padding:"9px 14px",fontSize:13,cursor:"pointer",
-                  color:active?d.a1:isHov?d.t:d.t2,
-                  background:active?`${d.a1}0f`:isHov?(isDark?"rgba(255,255,255,0.05)":"rgba(0,0,0,0.04)"):"transparent",
-                  display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,
-                  borderBottom:i<options.length-1?`1px solid ${isDark?"rgba(255,255,255,0.04)":"rgba(0,0,0,0.04)"}` :"none",
-                  transition:"background .1s,color .1s",fontWeight:active?500:400
-                }}>
-                <span style={{overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{l}</span>
-                {active&&(
-                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{flexShrink:0}}>
-                    <path d="M2.5 7l4 4 5-6.5" stroke={d.a1} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
-                  </svg>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
+    return [buf, j];
+  }
+
+  while (i < raw.length) {
+    const ch = raw[i];
+
+    // backslash command
+    if (ch === '\\') {
+      const m = raw.slice(i).match(BSRE);
+      if (!m) { pushTxt('\\'); i++; continue; }
+      const cmd = m[1];
+      i += 1 + cmd.length;
+
+      if (cmd === 'frac') {
+        const [num, i2] = readBraced(i);
+        const [den, i3] = readBraced(i2);
+        out.push({ t: 'frac', num, den });
+        i = i3; continue;
+      }
+      if (cmd === 'sqrt') {
+        const [inner, i2] = readBraced(i);
+        out.push({ t: 'sqrt', inner });
+        i = i2; continue;
+      }
+      // trig inverses: \tan^{-1}
+      if ((cmd === 'tan' || cmd === 'sin' || cmd === 'cos') && raw.slice(i, i+4) === '^{-1') {
+        out.push({ t: 'txt', v: cmd + '\u207b\u00b9' }); // ⁻¹
+        i += 5; continue; // skip ^{-1}
+      }
+      const SYMS = {
+        alpha:'α',beta:'β',gamma:'γ',delta:'δ',Delta:'Δ',theta:'θ',phi:'φ',
+        pi:'π',omega:'ω',Omega:'Ω',mu:'μ',lambda:'λ',sigma:'σ',epsilon:'ε',
+        rho:'ρ',eta:'η',xi:'ξ',zeta:'ζ',Lambda:'Λ',Gamma:'Γ',Phi:'Φ',Psi:'Ψ',
+        tau:'τ',nu:'ν',kappa:'κ',
+        tan:'tan',sin:'sin',cos:'cos',log:'log',ln:'ln',
+        arctan:'tan⁻¹',arcsin:'sin⁻¹',arccos:'cos⁻¹',
+        rightarrow:'→',leftarrow:'←',to:'→',Rightarrow:'⇒',leftrightarrow:'↔',rightleftharpoons:'⇌',
+        times:'×',cdot:'·',div:'÷',leq:'≤',geq:'≥',neq:'≠',
+        approx:'≈',infty:'∞',pm:'±',mp:'∓',circ:'°',degree:'°',
+        int:'∫',sum:'Σ',prod:'Π',partial:'∂',nabla:'∇',
+        forall:'∀',exists:'∃',
+      };
+      pushTxt(SYMS[cmd] ?? '');
+      continue;
+    }
+
+    // superscript  ^{...} or ^digit
+    if (ch === '^') {
+      if (raw[i+1] === '{') {
+        const [val, i2] = readBraced(i+1);
+        out.push({ t: 'sup', v: val });
+        i = i2; continue;
+      }
+      if (/\d/.test(raw[i+1])) { out.push({ t: 'sup', v: raw[i+1] }); i+=2; continue; }
+    }
+
+    // subscript  _{...} or _digit
+    if (ch === '_') {
+      if (raw[i+1] === '{') {
+        const [val, i2] = readBraced(i+1);
+        out.push({ t: 'sub', v: val });
+        i = i2; continue;
+      }
+      if (/\d/.test(raw[i+1])) { out.push({ t: 'sub', v: raw[i+1] }); i+=2; continue; }
+    }
+
+    pushTxt(ch); i++;
+  }
+
+  function pushTxt(c) {
+    const last = out[out.length - 1];
+    if (last && last.t === 'txt') last.v += c;
+    else out.push({ t: 'txt', v: c });
+  }
+
+  return out;
+}
+
+function MathText({ t, style }) {
+  if (!t) return null;
+  const tokens = parseMath(t);
+  return (
+    <span style={style}>
+      {tokens.map((tok, i) => {
+        if (tok.t === 'txt') return <span key={i}>{tok.v}</span>;
+
+        if (tok.t === 'sup') return (
+          <sup key={i} style={{fontSize:'0.72em',lineHeight:0,verticalAlign:'super',position:'relative',top:'-0.3em'}}>
+            <MathText t={tok.v}/>
+          </sup>
+        );
+
+        if (tok.t === 'sub') return (
+          <sub key={i} style={{fontSize:'0.72em',lineHeight:0,verticalAlign:'sub',position:'relative',bottom:'-0.2em'}}>
+            <MathText t={tok.v}/>
+          </sub>
+        );
+
+        if (tok.t === 'sqrt') return (
+          <span key={i} style={{display:'inline-flex',alignItems:'stretch',verticalAlign:'middle',margin:'0 1px'}}>
+            <span style={{fontSize:'1.2em',lineHeight:1,paddingRight:1,alignSelf:'center'}}>√</span>
+            <span style={{borderTop:'1.5px solid currentColor',paddingTop:1,paddingLeft:2,paddingRight:3}}>
+              <MathText t={tok.inner}/>
+            </span>
+          </span>
+        );
+
+        if (tok.t === 'frac') return (
+          <span key={i} style={{
+            display:'inline-flex',flexDirection:'column',alignItems:'center',
+            verticalAlign:'middle',margin:'0 3px',lineHeight:1.15,
+          }}>
+            <span style={{
+              borderBottom:'1.5px solid currentColor',
+              paddingBottom:2,paddingLeft:4,paddingRight:4,
+              whiteSpace:'nowrap',textAlign:'center',fontSize:'0.88em',
+            }}>
+              <MathText t={tok.num}/>
+            </span>
+            <span style={{
+              paddingTop:2,paddingLeft:4,paddingRight:4,
+              whiteSpace:'nowrap',textAlign:'center',fontSize:'0.88em',
+            }}>
+              <MathText t={tok.den}/>
+            </span>
+          </span>
+        );
+
+        return null;
+      })}
+    </span>
   );
 }
+
+// Plain-text fallback for non-JSX contexts (list views, etc.)
+function renderMath(text) {
+  if (!text) return text;
+  return text
+    .replace(/\\frac\{([^}]+)\}\{([^}]+)\}/g,'($1)/($2)')
+    .replace(/\\sqrt\{([^}]+)\}/g,'√($1)').replace(/\\sqrt(?![{])/g,'√')
+    .replace(/\^\{([^}]+)\}/g,(_,p)=>{const m={'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹','n':'ⁿ','-':'⁻'};return p.split('').map(c=>m[c]||c).join('');})
+    .replace(/\^(\d)/g,(_,d)=>'⁰¹²³⁴⁵⁶⁷⁸⁹'[d])
+    .replace(/\_\{([^}]+)\}/g,(_,s)=>{const m={'0':'₀','1':'₁','2':'₂','3':'₃','4':'₄','5':'₅','6':'₆','7':'₇','8':'₈','9':'₉'};return s.split('').map(c=>m[c]||c).join('');})
+    .replace(/_(\d)/g,(_,d)=>'₀₁₂₃₄₅₆₇₈₉'[d])
+    .replace(/\\arctan/g,'tan⁻¹').replace(/\\arcsin/g,'sin⁻¹').replace(/\\arccos/g,'cos⁻¹')
+    .replace(/\\tan\^{-1}/g,'tan⁻¹').replace(/\\sin\^{-1}/g,'sin⁻¹').replace(/\\cos\^{-1}/g,'cos⁻¹')
+    .replace(/\\alpha/g,'α').replace(/\\beta/g,'β').replace(/\\gamma/g,'γ').replace(/\\delta/g,'δ')
+    .replace(/\\Delta/g,'Δ').replace(/\\theta/g,'θ').replace(/\\phi/g,'φ').replace(/\\pi/g,'π')
+    .replace(/\\omega/g,'ω').replace(/\\Omega/g,'Ω').replace(/\\mu/g,'μ').replace(/\\lambda/g,'λ')
+    .replace(/\\sigma/g,'σ').replace(/\\epsilon/g,'ε').replace(/\\rho/g,'ρ')
+    .replace(/\\to(?![a-z])/g,'→').replace(/\\rightarrow/g,'→').replace(/\\rightleftharpoons/g,'⇌').replace(/\\times/g,'×')
+    .replace(/\\leq/g,'≤').replace(/\\geq/g,'≥').replace(/\\neq/g,'≠').replace(/\\approx/g,'≈')
+    .replace(/\\infty/g,'∞').replace(/\\pm/g,'±').replace(/\\cdot/g,'·')
+    .replace(/\\int/g,'∫').replace(/\\sum/g,'Σ').replace(/\\partial/g,'∂')
+    .replace(/\\[a-zA-Z]+/g,'');
+}
+
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -837,8 +807,8 @@ function ExamInterface({paper,user,questions,onSubmit,onExit,nta}){
 
               {/* Question box */}
               <div style={{background:nta.card,border:`1px solid ${nta.border}`,borderRadius:3,
-                padding:"16px 18px",marginBottom:14,lineHeight:1.85,color:nta.text,fontSize:13.5}}>
-                {currentQ.text}
+                padding:"16px 18px",marginBottom:14,lineHeight:1.85,color:nta.text,fontSize:13.5,fontFamily:"serif"}}>
+                <MathText t={currentQ.text}/>
               </div>
 
               {/* MCQ options */}
@@ -855,7 +825,7 @@ function ExamInterface({paper,user,questions,onSubmit,onExit,nta}){
                         fontWeight:700,fontSize:12,flexShrink:0}}>
                         {opt}
                       </div>
-                      <span style={{fontSize:13,color:nta.text,lineHeight:1.5}}>{text}</span>
+                      <span style={{fontSize:13,color:nta.text,lineHeight:1.5,fontFamily:"serif"}}><MathText t={text}/></span>
                     </div>
                   ))}
                 </div>
@@ -1364,8 +1334,8 @@ function ResultScreen({paper,questions,qState,user,onRetry,onBack,nta,dark}){
                 </div>
 
                 {/* Question text */}
-                <div style={{fontSize:16,color:nta.text,lineHeight:2.1,fontWeight:400,marginBottom:28,letterSpacing:"-.01em"}}>
-                  {q.text}
+                <div style={{fontSize:16,color:nta.text,lineHeight:2.1,fontWeight:400,marginBottom:28,letterSpacing:"-.01em",fontFamily:"serif"}}>
+                  <MathText t={q.text}/>
                 </div>
 
                 {/* MCQ options */}
@@ -1384,7 +1354,7 @@ function ResultScreen({paper,questions,qState,user,onRetry,onBack,nta,dark}){
                             display:"flex",alignItems:"center",justifyContent:"center",
                             fontSize:13,fontWeight:700,color:keyC,flexShrink:0,marginTop:2}}>{key}</div>
                           <div style={{flex:1,minWidth:0}}>
-                            <div style={{fontSize:14,color:textC,lineHeight:1.8}}>{val}</div>
+                            <div style={{fontSize:14,color:textC,lineHeight:1.8,fontFamily:"serif"}}><MathText t={val}/></div>
                             {isCorrectOpt&&<div style={{fontSize:10,color:nta.answered,fontWeight:700,marginTop:5,letterSpacing:".05em",textTransform:"uppercase"}}>correct answer</div>}
                             {isUserOpt&&!isCorrectOpt&&<div style={{fontSize:10,color:nta.notAnswered,fontWeight:700,marginTop:5,letterSpacing:".05em",textTransform:"uppercase"}}>your answer</div>}
                           </div>
@@ -1421,7 +1391,7 @@ function ResultScreen({paper,questions,qState,user,onRetry,onBack,nta,dark}){
                     <div style={{fontSize:14,color:nta.text2,lineHeight:2.1,whiteSpace:"pre-wrap",
                       background:nta.hover,padding:"22px 24px",borderRadius:4,
                       borderLeft:`4px solid ${nta.header}`}}>
-                      {q.solution}
+                      {q.solution.split("\n").map((line,i)=><div key={i}><MathText t={line}/></div>)}
                     </div>
                   ):(
                     <div style={{padding:"24px",borderRadius:4,border:`1px dashed ${nta.border}`,textAlign:"center",background:nta.hover}}>
