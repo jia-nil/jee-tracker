@@ -194,6 +194,43 @@ function renderMath(text) {
 // Students add their own questions via the admin panel (slothr-admin.jsx)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Utility functions ────────────────────────────────────────────────────────
+const fmt  = m=>{if(m==null||m<0)return"0m";if(m===0)return"0m";return m<60?m+"m":Math.floor(m/60)+"h"+(m%60>0?" "+m%60+"m":"");};
+const fmtT = s=>{const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${h}:${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;};
+const today= ()=>new Date().toISOString().split("T")[0];
+function calcStreak(sessions){const days=[...new Set(sessions.map(s=>s.date))].sort().reverse();if(!days.length)return 0;let streak=0,cur=new Date();cur.setHours(0,0,0,0);for(const d of days){const dd=new Date(d);dd.setHours(0,0,0,0);if(Math.round((cur-dd)/86400000)<=1){streak++;cur=dd;}else break;}return streak;}
+
+// ── Select component ──────────────────────────────────────────────────────────
+function Select({value,onChange,options,placeholder,disabled,d,minWidth}){
+  return(
+    <select value={value} onChange={e=>onChange(e.target.value)} disabled={disabled}
+      style={{background:d?d.inp:"#1a1816",border:`1px solid ${d?d.b:"rgba(255,255,255,0.07)"}`,
+        color:d?d.t:"#f5f0e8",borderRadius:5,padding:"7px 10px",fontSize:13,
+        fontFamily:"inherit",cursor:"pointer",minWidth:minWidth||120,outline:"none"}}>
+      {placeholder&&<option value="">{placeholder}</option>}
+      {options.map(o=><option key={o.value??o} value={o.value??o}>{o.label??o}</option>)}
+    </select>
+  );
+}
+
+// ── Theme ─────────────────────────────────────────────────────────────────────
+const THEME = {
+  dark:{
+    bg:"#0e0d0b",sb:"#0a0908",card:"#161410",hover:"#1c1a17",
+    b:"rgba(255,255,255,0.07)",bs:"rgba(255,255,255,0.14)",
+    t:"#f5f0e8",t2:"#c8c0b0",t3:"#8a8070",t4:"#4a4540",
+    a1:"#e8723c",a2:"#4d9e78",a3:"#7a8fc2",
+    inp:"#1a1816",ring:"#e8723c",danger:"#d4604a",
+  },
+  light:{
+    bg:"#f7f4ee",sb:"#f0ece3",card:"#ffffff",hover:"#f0ece3",
+    b:"rgba(0,0,0,0.08)",bs:"rgba(0,0,0,0.16)",
+    t:"#1a1510",t2:"#4a4035",t3:"#8a7a6a",t4:"#c0b8a8",
+    a1:"#d4612a",a2:"#3d8a63",a3:"#5b6fa8",
+    inp:"#f7f4ee",ring:"#d4612a",danger:"#c44a35",
+  },
+};
+
 // ── Ad config — replace with real values when AdSense is approved ─────────────
 const ADSENSE_PUB   = "ca-pub-XXXXXXXXXXXXXXXX";
 const ADSENSE_READY = false; // flip to true once AdSense approves you
@@ -285,6 +322,56 @@ function BannerAd({d}){
 }
 
 // ── Placeholder papers — replace questions with real ones from your DB ────────
+const SUBJECT_COLORS = { Physics:"#e8845c", Chemistry:"#5eaa8a", Mathematics:"#7b8ec8" };
+const TOPICS = {
+  Physics:{
+    "11th":["Kinematics","Laws of Motion","Work & Energy","Rotational Motion","Gravitation","Thermodynamics","Waves","Oscillations","Properties of Matter","Kinetic Theory"],
+    "12th":["Electrostatics","Current Electricity","Magnetism","EMI & AC","Optics","Modern Physics","Semiconductors","Dual Nature","Atoms & Nuclei","Communication"],
+    dropper:["Kinematics","Laws of Motion","Work & Energy","Rotational Motion","Gravitation","Thermodynamics","Waves","Oscillations","Electrostatics","Current Electricity","Magnetism","EMI & AC","Optics","Modern Physics","Semiconductors"]
+  },
+  Chemistry:{
+    "11th":["Mole Concept","Atomic Structure","Chemical Bonding","States of Matter","Thermodynamics","Equilibrium","Redox","Organic Basics","Hydrocarbons","s-Block Elements"],
+    "12th":["Electrochemistry","Chemical Kinetics","Solutions","Surface Chemistry","p-Block Elements","d-Block Elements","Coordination Compounds","Haloalkanes","Alcohols","Amines"],
+    dropper:["Mole Concept","Atomic Structure","Chemical Bonding","Thermodynamics","Equilibrium","Electrochemistry","Chemical Kinetics","Coordination Compounds","Organic Chemistry","p-Block Elements"]
+  },
+  Mathematics:{
+    "11th":["Sets & Functions","Trigonometry","Sequences & Series","Straight Lines","Conic Sections","Permutations","Binomial Theorem","Limits","Statistics","Probability"],
+    "12th":["Matrices","Determinants","Continuity & Differentiability","Applications of Derivatives","Integrals","Differential Equations","Vectors","3D Geometry","Probability","Linear Programming"],
+    dropper:["Calculus","Algebra","Coordinate Geometry","Trigonometry","Vectors & 3D","Probability","Matrices","Complex Numbers","Sequences & Series","Differential Equations"]
+  }
+};
+const JEE_WEIGHTAGE = {
+  Physics:{"Kinematics":"M","Laws of Motion":"H","Work & Energy":"H","Rotational Motion":"H","Gravitation":"M","Thermodynamics":"H","Waves":"M","Oscillations":"H","Properties of Matter":"L","Kinetic Theory":"M","Electrostatics":"H","Current Electricity":"H","Magnetism":"H","EMI & AC":"H","Optics":"H","Modern Physics":"H","Semiconductors":"M","Dual Nature":"M","Atoms & Nuclei":"M","Communication":"L"},
+  Chemistry:{"Mole Concept":"H","Atomic Structure":"H","Chemical Bonding":"H","States of Matter":"M","Thermodynamics":"H","Equilibrium":"H","Redox":"M","Organic Basics":"H","Hydrocarbons":"H","s-Block Elements":"L","Electrochemistry":"H","Chemical Kinetics":"H","Solutions":"M","Surface Chemistry":"L","p-Block Elements":"H","d-Block Elements":"H","Coordination Compounds":"H","Haloalkanes":"M","Alcohols":"M","Amines":"M","Organic Chemistry":"H"},
+  Mathematics:{"Sets & Functions":"L","Trigonometry":"H","Sequences & Series":"M","Straight Lines":"M","Conic Sections":"H","Permutations":"M","Binomial Theorem":"M","Limits":"H","Statistics":"L","Probability":"H","Matrices":"M","Determinants":"M","Continuity & Differentiability":"H","Applications of Derivatives":"H","Integrals":"H","Differential Equations":"H","Vectors":"H","3D Geometry":"H","Linear Programming":"L","Calculus":"H","Algebra":"H","Coordinate Geometry":"H","Vectors & 3D":"H","Complex Numbers":"H"}
+};
+const CLASSES = [
+  {id:"11th", label:"Class 11th", icon:"①"},
+  {id:"12th", label:"Class 12th", icon:"②"},
+  {id:"dropper", label:"Dropper", icon:"↻"},
+];
+
+const TABS = [
+  {id:"overview",  label:"Overview",      icon:"⌂"},
+  {id:"coach",     label:"Analytics",     icon:"👁"},
+  {id:"goals",     label:"today's goals", icon:"◎"},
+  {id:"pyq",       label:"Practice",      icon:"◈"},
+  {id:"sessions",  label:"Sessions",      icon:"◷"},
+  {id:"streaks",   label:"Streaks",       icon:"🔥"},
+];
+
+const STREAK_MILESTONES = [
+  {days:1,  icon:"🌱", label:"First Day"},
+  {days:5,  icon:"🔥", label:"5 Day Streak"},
+  {days:7,  icon:"⚡", label:"One Week"},
+  {days:10, icon:"💪", label:"10 Days"},
+  {days:15, icon:"🎯", label:"15 Days"},
+  {days:21, icon:"🏆", label:"3 Weeks"},
+  {days:30, icon:"👑", label:"30 Days"},
+  {days:50, icon:"💎", label:"50 Days"},
+  {days:100,icon:"🦥", label:"100 Days"},
+];
+
 const PAPERS = [
   // ── 2024 ─────────────────────────────────────────────────────────────────
   {
