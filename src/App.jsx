@@ -1452,7 +1452,8 @@ function NTAMode({user,dark,onExit,onTestComplete,completedTests,onStoreTest}){
     try {
       // paperId e.g. "adv-2024-p1" — matches slug prefix in Supabase
       // We derive year + paper from the id
-      const parts = paperId.split("-"); // ["adv","2024","p1"]
+      const parts = paperId.split("-"); 
+      console.log("FETCHING:", SB_URL, year, shift);// ["adv","2024","p1"]
       const year  = parseInt(parts[1]);
       const paper = parts[2].toUpperCase(); // "P1" or "P2"
       const shift = paper==="P1"?"Morning":"Evening";
