@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 
-const SB_URL  = import.meta.env.VITE_SUPABASE_URL;
-const SB_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
-console.log("ENV:", import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY);
+// ── Supabase config — replace with your project values ───────────────────────
+const SB_URL  = "https://tlmazdrnndylafhfxsrc.supabase.co";
+const SB_ANON = "YOUR_ANON_KEY"; // ← paste your anon key here before committing
+// ─────────────────────────────────────────────────────────────────────────────
+
 const SUBJECT_COLORS = { Physics:"#e8845c", Chemistry:"#5eaa8a", Mathematics:"#7b8ec8" };
 const TOPICS = {
   Physics:{
@@ -1452,8 +1454,7 @@ function NTAMode({user,dark,onExit,onTestComplete,completedTests,onStoreTest}){
     try {
       // paperId e.g. "adv-2024-p1" — matches slug prefix in Supabase
       // We derive year + paper from the id
-      const parts = paperId.split("-"); 
-      console.log("FETCHING:", SB_URL, year, shift);// ["adv","2024","p1"]
+      const parts = paperId.split("-"); // ["adv","2024","p1"]
       const year  = parseInt(parts[1]);
       const paper = parts[2].toUpperCase(); // "P1" or "P2"
       const shift = paper==="P1"?"Morning":"Evening";
@@ -2885,4 +2886,3 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
     </>
   );
 }
-
