@@ -1551,6 +1551,7 @@ function NTAMode({user,dark,onExit,onTestComplete,completedTests,onStoreTest}){
       }));
 
       if(mapped.length===0) setQError("No questions found for this paper yet. Add them in the admin panel.");
+      console.log("FETCHED:", mapped.length, mapped.map(q=>q.id+"|"+q.section+"|"+q.qno));
       else setQuestions(mapped);
     } catch(e){ setQError("Failed to load questions: "+e.message); }
     setQLoading(false);
