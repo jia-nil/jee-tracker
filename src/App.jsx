@@ -1549,9 +1549,9 @@ function NTAMode({user,dark,onExit,onTestComplete,completedTests,onStoreTest}){
         answer_type: q.answer_type||"text",
         partial_marks: q.partial_marks||null,
       }));
-
-      if(mapped.length===0) setQError("No questions found for this paper yet. Add them in the admin panel.");
       console.log("FETCHED:", mapped.length, mapped.map(q=>q.id+"|"+q.section+"|"+q.qno));
+      if(mapped.length===0) setQError("No questions found for this paper yet. Add them in the admin panel.");
+    
       else setQuestions(mapped);
     } catch(e){ setQError("Failed to load questions: "+e.message); }
     setQLoading(false);
