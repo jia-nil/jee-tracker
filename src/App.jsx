@@ -1506,56 +1506,88 @@ function NTAMode({user,dark,onExit,onTestComplete,completedTests,onStoreTest}){
   const [qLoading,setQLoading]=useState(false);
   const [qError,setQError]=useState(null);
 
-  async function fetchQuestions(paperId){
-    setQLoading(true); setQError(null); setQuestions([]);
-    try {
-      // paperId e.g. "adv-2024-p1" — matches slug prefix in Supabase
-      // We derive year + paper from the id
-      const parts = paperId.split("-"); // ["adv","2024","p1"]
-      const year  = parseInt(parts[1]);
-      const paper = parts[2].toUpperCase(); // "P1" or "P2"
-      const shift = paper==="P1"?"Morning":"Evening";
+ async function fetchQuestions(paperId){
+  console.log("🚀 fetchQuestions called with:", paperId);
 
-      const params = [
-        "select=*",
-        `year=eq.${year}`,
-        `shift=eq.${shift}`,
-        "exam=eq.JEE%20Advanced",
-        "is_active=eq.true",
-        "is_verified=eq.true",
-        "order=qno.asc",
-      ].join("&");
-      const r = await fetch(`${SB_URL}/rest/v1/questions?${params}`, {
-        headers:{"apikey":SB_ANON,"Authorization":"Bearer "+SB_ANON}
-      });
-      if(!r.ok) throw new Error(await r.text());
-      const raw = await r.json();
+  setQLoading(true); 
+  setQError(null); 
+  setQuestions([]);
 
-      // Map Supabase columns → NTA question shape
-      const mapped = raw.map(q=>({
-        id:       q.id,
-        section:  q.subject,           // Physics / Chemistry / Mathematics
-        qno:      q.qno || 1,
-        type:     q.question_type==="SCQ"?"mcq":
-                  q.question_type==="MSQ"?"msq":
-                  q.question_type==="Integer"||q.question_type==="Decimal"?"numerical":"mcq",
-        text:     q.question_text,
-        options:  q.option_a?{A:q.option_a,B:q.option_b,C:q.option_c,D:q.option_d}:null,
-        correct:  q.correct,
-        solution: q.solution,
-        topic:    q.topic,
-        difficulty: q.difficulty,
-        diagram_url: q.diagram_url||null,
-        answer_type: q.answer_type||"text",
-        partial_marks: q.partial_marks||null,
-      }));
-      console.log("FETCHED:", mapped.length, mapped.map(q=>q.id+"|"+q.section+"|"+q.qno));
-      if(mapped.length===0) setQError("No questions found for this paper yet. Add them in the admin panel.");
-    
-      else setQuestions(mapped);
-    } catch(e){ setQError("Failed to load questions: "+e.message); }
-    setQLoading(false);
+  try {
+    const parts = paperId.split("-");
+    console.log("🧩 parts:", parts);
+
+    const year  = parseInt(parts[1]);
+    const paper = parts[2]?.toUpperCase();
+    const shift = paper==="P1"?"Morning":"Evening";
+
+    console.log("📅 year:", year, "📄 paper:", paper, "⏰ shift:", shift);
+
+    const params = [
+      "select=*",
+      `year=eq.${year}`,
+      `shift=eq.${shift}`,
+      "exam=eq.JEE%20Advanced",
+      "is_active=eq.true",
+      "is_verified=eq.true",
+      "order=qno.asc",
+    ].join("&");
+
+    const url = `${SB_URL}/rest/v1/questions?${params}`;
+    console.log("🌐 FETCH URL:", url);
+
+    const r = await fetch(url, {
+      headers:{
+        "apikey": SB_ANON,
+        "Authorization": "Bearer " + SB_ANON
+      }
+    });
+
+    console.log("📡 response status:", r.status);
+
+    if(!r.ok){
+      const errText = await r.text();
+      console.error("❌ API ERROR:", errText);
+      throw new Error(errText);
+    }
+
+    const raw = await r.json();
+    console.log("📦 RAW DATA:", raw);
+
+    const mapped = raw.map(q=>({
+      id: q.id,
+      section: q.subject,
+      qno: q.qno || 1,
+      type: q.question_type==="SCQ"?"mcq":
+            q.question_type==="MSQ"?"msq":
+            q.question_type==="Integer"||q.question_type==="Decimal"?"numerical":"mcq",
+      text: q.question_text,
+      options: q.option_a?{A:q.option_a,B:q.option_b,C:q.option_c,D:q.option_d}:null,
+      correct: q.correct,
+      solution: q.solution,
+      topic: q.topic,
+      difficulty: q.difficulty,
+      diagram_url: q.diagram_url||null,
+      answer_type: q.answer_type||"text",
+      partial_marks: q.partial_marks||null,
+    }));
+
+    console.log("✅ MAPPED:", mapped.length, mapped);
+
+    if(mapped.length===0){
+      console.warn("⚠️ No questions returned from DB");
+      setQError("No questions found for this paper yet.");
+    } else {
+      setQuestions(mapped);
+    }
+
+  } catch(e){
+    console.error("🔥 FETCH FAILED:", e);
+    setQError("Failed to load questions: "+e.message);
   }
+
+  setQLoading(false);
+}
 
   function handleStart(p){
     setSelectedPaper(p);
