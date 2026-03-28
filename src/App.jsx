@@ -1880,7 +1880,6 @@ export default function App(){
     setTimeout(()=>setToast(null), 3000);
   }
 
-  if(!authSession) return <AuthScreen onAuth={handleAuthSuccess}/>;
 
   const d=dark?THEME.dark:THEME.light;
   const classTopics=sub=>TOPICS[sub][jeClass]||TOPICS[sub].dropper;
@@ -1964,6 +1963,9 @@ export default function App(){
       return g;
     }));
   },[sessions,pyqHistory]);
+
+  if(!authSession) return <AuthScreen onAuth={handleAuthSuccess}/>;
+
 
   function addGoal(){
     if(!goalTopic&&!goalInput.trim()) return;
