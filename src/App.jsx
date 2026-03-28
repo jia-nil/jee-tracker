@@ -1814,7 +1814,6 @@ export default function App(){
   },[authSession?.access_token]);
 
   // Show auth screen if not logged in
-  if(!authSession) return <AuthScreen onAuth={handleAuthSuccess}/>;
 
   const [dark,setDark]=useState(true);
   const [sideOpen,setSideOpen]=useState(true);
@@ -1880,6 +1879,9 @@ export default function App(){
     setToast(msg);
     setTimeout(()=>setToast(null), 3000);
   }
+
+  if(!authSession) return <AuthScreen onAuth={handleAuthSuccess}/>;
+
   const d=dark?THEME.dark:THEME.light;
   const classTopics=sub=>TOPICS[sub][jeClass]||TOPICS[sub].dropper;
   const subColor=SUBJECT_COLORS[timerSub]||d.a1;
