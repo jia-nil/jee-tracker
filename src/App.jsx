@@ -1809,6 +1809,20 @@ export default function App(){
     SB_AUTH.loadData("user_mocks", uid, token).then(data=>{
       if(data?.length) setMocks(data.map(r=>r.data||r));
     });
+    // Load pyqHistory — all time for accuracy calculation
+    SB_AUTH.loadData("user_pyq", uid, token).then(data=>{
+      if(data?.length) setPyqHistory(data.map(r=>r.data||r));
+    });
+    // Load completedTests — only last 2
+    SB_AUTH.loadData("user_completed", uid, token).then(data=>{
+      if(data?.length) {
+        // data is array sorted by created_at asc, take last 2
+        const last2 = data.slice(-2);
+        const map = {};
+        last2.forEach(r=>{ if(r.paper_id) map[r.paper_id]=r.data; });
+        setCompletedTests(map);
+      }
+    });
     // Load jeClass
     fetch(`${SB_URL}/rest/v1/user_prefs?user_id=eq.${uid}&select=*`, {
       headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`}
@@ -1829,17 +1843,45 @@ export default function App(){
 
   // ── Receive completed practice test result ────────────────────────────────
   function handleStoreTest(paperId, result){
-    setCompletedTests(prev=>({...prev,[paperId]:result}));
+    setCompletedTests(prev=>{
+      // Keep only last 2 papers in memory
+      const entries = Object.entries({...prev,[paperId]:result});
+      const last2 = Object.fromEntries(entries.slice(-2));
+      return last2;
+    });
+    if(authSession?.access_token && user?.id) {
+      // Delete old entries for this paper first, then insert new
+      const token = authSession.access_token;
+      const uid = user.id;
+      fetch(`${SB_URL}/rest/v1/user_completed?user_id=eq.${uid}&paper_id=eq.${encodeURIComponent(paperId)}`,{
+        method:"DELETE",
+        headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`}
+      }).then(()=>{
+        fetch(`${SB_URL}/rest/v1/user_completed`,{method:"POST",
+          headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`,"Content-Type":"application/json"},
+          body:JSON.stringify({user_id:uid,paper_id:paperId,data:result})
+        }).catch(()=>{});
+      }).catch(()=>{});
+    }
   }
   function handleTestComplete({mockEntry, pyqEntries}){
     setMocks(prev=>[...prev, mockEntry]);
     setPyqHistory(prev=>[...prev, ...pyqEntries]);
-    // Persist mock result to Supabase
     if(authSession?.access_token && user?.id) {
+      const token = authSession.access_token;
+      const uid = user.id;
+      // Save mock
       fetch(`${SB_URL}/rest/v1/user_mocks`,{method:"POST",
-        headers:{"apikey":SB_ANON,"Authorization":`Bearer ${authSession.access_token}`,"Content-Type":"application/json"},
-        body:JSON.stringify({user_id:user.id,data:mockEntry})
+        headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`,"Content-Type":"application/json"},
+        body:JSON.stringify({user_id:uid,data:mockEntry})
       }).catch(()=>{});
+      // Save each pyq entry for accuracy tracking
+      pyqEntries.forEach(entry=>{
+        fetch(`${SB_URL}/rest/v1/user_pyq`,{method:"POST",
+          headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`,"Content-Type":"application/json"},
+          body:JSON.stringify({user_id:uid,data:entry})
+        }).catch(()=>{});
+      });
     }
   }
 
@@ -2207,7 +2249,16 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
     const correct=opt===currentPyq.correct;
     setPyqResult(correct?"correct":"incorrect");
     setRevealed(true);
-    setPyqHistory(p=>[...p,{qid:currentPyq.id,subject:currentPyq.subject,topic:currentPyq.topic,correct,date:today(),difficulty:currentPyq.difficulty,year:currentPyq.year}]);
+    {
+      const entry={qid:currentPyq.id,subject:currentPyq.subject,topic:currentPyq.topic,correct,date:today(),difficulty:currentPyq.difficulty};
+      setPyqHistory(p=>[...p,entry]);
+      if(authSession?.access_token && user?.id) {
+        fetch(`${SB_URL}/rest/v1/user_pyq`,{method:"POST",
+          headers:{"apikey":SB_ANON,"Authorization":`Bearer ${authSession.access_token}`,"Content-Type":"application/json"},
+          body:JSON.stringify({user_id:user.id,data:entry})
+        }).catch(()=>{});
+      }
+    }
   }
 
   // ── CSS ───────────────────────────────────────────────────────────────────
