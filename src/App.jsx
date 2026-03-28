@@ -1805,6 +1805,10 @@ export default function App(){
     SB_AUTH.loadData("user_goals", uid, token).then(data=>{
       if(data?.length) setGoals(data.map(r=>r.data||r));
     });
+    // Load mocks
+    SB_AUTH.loadData("user_mocks", uid, token).then(data=>{
+      if(data?.length) setMocks(data.map(r=>r.data||r));
+    });
     // Load jeClass
     fetch(`${SB_URL}/rest/v1/user_prefs?user_id=eq.${uid}&select=*`, {
       headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`}
@@ -1828,10 +1832,15 @@ export default function App(){
     setCompletedTests(prev=>({...prev,[paperId]:result}));
   }
   function handleTestComplete({mockEntry, pyqEntries}){
-    // Add to mocks (for coach analysis)
     setMocks(prev=>[...prev, mockEntry]);
-    // Add all answered questions to pyqHistory
     setPyqHistory(prev=>[...prev, ...pyqEntries]);
+    // Persist mock result to Supabase
+    if(authSession?.access_token && user?.id) {
+      fetch(`${SB_URL}/rest/v1/user_mocks`,{method:"POST",
+        headers:{"apikey":SB_ANON,"Authorization":`Bearer ${authSession.access_token}`,"Content-Type":"application/json"},
+        body:JSON.stringify({user_id:user.id,data:mockEntry})
+      }).catch(()=>{});
+    }
   }
 
   // Goals
@@ -1921,7 +1930,16 @@ export default function App(){
               clearInterval(timerRef.current);
               setTimerOn(false);
               setTimerDone(true);
-              setSessions(p=>[...p,{id:Date.now(),subject:timerSub,topic:timerTopic||"General",duration:countdownSet,date:today(),notes:timerNotes||"Countdown session"}]);
+              {
+      const entry={id:Date.now(),subject:timerSub,topic:timerTopic||"General",duration:countdownSet,date:today(),notes:timerNotes||"Countdown session"};
+      setSessions(p=>[...p,entry]);
+      if(authSession?.access_token && user?.id) {
+        fetch(`${SB_URL}/rest/v1/user_sessions`,{method:"POST",
+          headers:{"apikey":SB_ANON,"Authorization":`Bearer ${authSession.access_token}`,"Content-Type":"application/json"},
+          body:JSON.stringify({user_id:user.id,data:entry})
+        }).catch(()=>{});
+      }
+    }
               return 0;
             }
             return s-1;
@@ -1977,7 +1995,16 @@ export default function App(){
     const rawSec=timerSecRef.current;
     const m=Math.max(1,Math.round(rawSec/60));
     // Only save if at least 30 seconds elapsed — prevents 0-minute ghost sessions
-    if(rawSec>=30) setSessions(p=>[...p,{id:Date.now(),subject:timerSub,topic:timerTopic||"General",duration:m,date:today(),notes:timerNotes||"Timer session"}]);
+    if(rawSec>=30) {
+      const entry={id:Date.now(),subject:timerSub,topic:timerTopic||"General",duration:m,date:today(),notes:timerNotes||"Timer session"};
+      setSessions(p=>[...p,entry]);
+      if(authSession?.access_token && user?.id) {
+        fetch(`${SB_URL}/rest/v1/user_sessions`,{method:"POST",
+          headers:{"apikey":SB_ANON,"Authorization":`Bearer ${authSession.access_token}`,"Content-Type":"application/json"},
+          body:JSON.stringify({user_id:user.id,data:entry})
+        }).catch(()=>{});
+      }
+    }
     setTimerSec(0);
     timerSecRef.current=0;
   }
