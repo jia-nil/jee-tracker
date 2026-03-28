@@ -1758,6 +1758,11 @@ export default function App(){
     else localStorage.removeItem("slothr_auth");
     setAuthSession(null);
     setSessions([]); setMocks([]); setGoals([]); setPyqHistory([]); setCompletedTests({});
+    try {
+      localStorage.removeItem("slothr_class");
+      localStorage.removeItem("slothr_pyq");
+      localStorage.removeItem("slothr_completed");
+    } catch(e){}
   }
 
   function handleAuthSuccess(session) {
@@ -1836,17 +1841,28 @@ export default function App(){
   const [dark,setDark]=useState(true);
   const [sideOpen,setSideOpen]=useState(true);
   const [tab,setTab]=useState("overview");
-  const [jeClass,setJeClass]=useState(null);
+  const [jeClass,setJeClass]=useState(()=>{
+    try { return localStorage.getItem("slothr_class")||null; } catch(e){return null;}
+  });
   const [sessions,setSessions]=useState([]);
   const [mocks,setMocks]=useState([]); // populated automatically from practice tests
-  const [completedTests,setCompletedTests]=useState({}); // paper.id → {qState,questions,date}
+  const [completedTests,setCompletedTests]=useState(()=>{
+    try {
+      const cached = localStorage.getItem("slothr_completed");
+      if(!cached) return {};
+      const all = JSON.parse(cached);
+      // Keep only last 2
+      const entries = Object.entries(all);
+      return Object.fromEntries(entries.slice(-2));
+    } catch(e){ return {}; }
+  }); // paper.id → {qState,questions,date}
 
   // ── Receive completed practice test result ────────────────────────────────
   function handleStoreTest(paperId, result){
     setCompletedTests(prev=>{
-      // Keep only last 2 papers in memory
       const entries = Object.entries({...prev,[paperId]:result});
       const last2 = Object.fromEntries(entries.slice(-2));
+      try { localStorage.setItem("slothr_completed", JSON.stringify(last2)); } catch(e){}
       return last2;
     });
     if(authSession?.access_token && user?.id) {
@@ -1901,7 +1917,12 @@ export default function App(){
   const [currentPyq,setCurrentPyq]=useState(null);
   const [revealed,setRevealed]=useState(false);
   const [pyqResult,setPyqResult]=useState(null);
-  const [pyqHistory,setPyqHistory]=useState([]);
+  const [pyqHistory,setPyqHistory]=useState(()=>{
+    try {
+      const cached = localStorage.getItem("slothr_pyq");
+      return cached ? JSON.parse(cached) : [];
+    } catch(e){ return []; }
+  });
   const [selectedOpt,setSelectedOpt]=useState(null);
 
   // Coach
@@ -2003,6 +2024,9 @@ export default function App(){
   const streak=calcStreak(sessions);
   const todayGoals=goals.filter(g=>g.date===today());
   const pyqAccuracy=pyqHistory.length?Math.round((pyqHistory.filter(p=>p.correct).length/pyqHistory.length)*100):null;
+  useEffect(()=>{
+    try { localStorage.setItem("slothr_pyq", JSON.stringify(pyqHistory)); } catch(e){}
+  },[pyqHistory]);
   const barMax=Math.max(...Object.values(totBySub),1);
   const currentMilestone=[...STREAK_MILESTONES].reverse().find(b=>streak>=b.days);
   const nextMilestone=STREAK_MILESTONES.find(b=>b.days>streak);
@@ -2569,9 +2593,10 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
         {CLASSES.map(c=>(
           <div key={c.id} className="class-opt" onClick={()=>{
                   setJeClass(c.id);
+                  try { localStorage.setItem("slothr_class", c.id); } catch(e){}
                   if(authSession?.access_token && user?.id) {
                     fetch(`${SB_URL}/rest/v1/user_prefs`,{method:"POST",
-                      headers:{"apikey":SB_ANON,"Authorization":`Bearer ${authSession.access_token}`,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},
+                      headers:{"apikey":SB_ANON,"Authorization":`Bearer ${authSession.access_token}`,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates,return=representation"},
                       body:JSON.stringify({user_id:user.id,je_class:c.id})
                     }).catch(()=>{});
                   }
