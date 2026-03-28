@@ -3,6 +3,58 @@ import { useState, useEffect, useRef, useCallback } from "react";
 // ── Supabase config — replace with your project values ───────────────────────
 const SB_URL  = "https://tlmazdrnndylafhfxsrc.supabase.co";
 const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsbWF6ZHJubmR5bGFmaGZ4c3JjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1ODEwNjAsImV4cCI6MjA4ODE1NzA2MH0.gGPknDEdaGfzDb2JJ2amEY9b33jlbTY3brvbbhvvIWg"; // ← paste your anon key here before committing
+
+// ── Supabase Auth helpers ─────────────────────────────────────────────────────
+const SB_AUTH = {
+  async signInGoogle() {
+    window.location.href = `${SB_URL}/auth/v1/authorize?provider=google&redirect_to=${encodeURIComponent(window.location.origin)}`;
+  },
+  async signInEmail(email, password) {
+    const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=password`, {
+      method:"POST", headers:{"apikey":SB_ANON,"Content-Type":"application/json"},
+      body: JSON.stringify({email, password})
+    });
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error_description||d.message||"Login failed");
+    return d;
+  },
+  async signUp(email, password) {
+    const r = await fetch(`${SB_URL}/auth/v1/signup`, {
+      method:"POST", headers:{"apikey":SB_ANON,"Content-Type":"application/json"},
+      body: JSON.stringify({email, password})
+    });
+    const d = await r.json();
+    if(!r.ok) throw new Error(d.error_description||d.message||"Sign up failed");
+    return d;
+  },
+  async signOut(token) {
+    await fetch(`${SB_URL}/auth/v1/logout`, {
+      method:"POST", headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`}
+    });
+    localStorage.removeItem("slothr_auth");
+  },
+  async getUser(token) {
+    const r = await fetch(`${SB_URL}/auth/v1/user`, {
+      headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`}
+    });
+    return r.ok ? r.json() : null;
+  },
+  async saveData(table, data, token) {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}`, {
+      method:"POST",
+      headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates,return=representation"},
+      body: JSON.stringify(data)
+    });
+    return r.ok ? r.json() : null;
+  },
+  async loadData(table, userId, token) {
+    const r = await fetch(`${SB_URL}/rest/v1/${table}?user_id=eq.${userId}&select=*&order=created_at.asc`, {
+      headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`}
+    });
+    return r.ok ? r.json() : [];
+  },
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 // ── Math renderer — proper stacked fractions via JSX ─────────────────────────
@@ -231,95 +283,7 @@ const THEME = {
   },
 };
 
-// ── Ad config — replace with real values when AdSense is approved ─────────────
-const ADSENSE_PUB   = "ca-pub-XXXXXXXXXXXXXXXX";
-const ADSENSE_READY = false; // flip to true once AdSense approves you
-const AD_SLOTS      = { rewarded:"1234567890", interstitial:"0987654321" };
-const INTERSTITIAL_EVERY = 3;
-
 // ── Rewarded Ad Modal ─────────────────────────────────────────────────────────
-function MockRewardedAd({onComplete,onSkip,d}){
-  const [secs,setSecs]=useState(15);
-  const [done,setDone]=useState(false);
-  useEffect(()=>{
-    const t=setInterval(()=>setSecs(s=>{if(s<=1){clearInterval(t);setDone(true);return 0;}return s-1;}),1000);
-    return()=>clearInterval(t);
-  },[]);
-  return(
-    <div style={{position:"fixed",inset:0,zIndex:200,background:"rgba(0,0,0,.88)",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(8px)"}}>
-      <div style={{width:360,background:d.card,borderRadius:16,overflow:"hidden",border:`1px solid ${d.b}`}}>
-        <div style={{height:200,background:d.hover,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8,borderBottom:`1px solid ${d.b}`}}>
-          {ADSENSE_READY?(
-            <ins className="adsbygoogle" style={{display:"block",width:"100%",height:"200px"}} data-ad-client={ADSENSE_PUB} data-ad-slot={AD_SLOTS.rewarded} data-ad-format="fluid"/>
-          ):(
-            <><div style={{fontSize:36}}>📺</div><div style={{fontSize:13,color:d.t3,fontWeight:500}}>ad placeholder</div><div style={{fontSize:11,color:d.t4}}>swap with real AdSense rewarded unit</div></>
-          )}
-        </div>
-        <div style={{padding:"18px 20px"}}>
-          <div style={{fontSize:13,fontWeight:600,color:d.t,marginBottom:4}}>watch this to unlock AI</div>
-          <div style={{fontSize:11.5,color:d.t3,marginBottom:16}}>one short ad = one AI use. fair trade.</div>
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            {done?(
-              <button onClick={onComplete} style={{flex:1,padding:"11px",borderRadius:3,background:"#5eaa8a",color:"#fff",border:"none",fontFamily:"inherit",fontSize:13,fontWeight:700,cursor:"pointer"}}>✓ claim AI use →</button>
-            ):(
-              <button disabled style={{flex:1,padding:"11px",borderRadius:3,background:d.hover,color:d.t3,border:`1px solid ${d.b}`,fontFamily:"inherit",fontSize:13,cursor:"not-allowed"}}>unlocks in {secs}s…</button>
-            )}
-            <button onClick={onSkip} style={{padding:"11px 14px",borderRadius:3,background:"none",color:d.t4,border:`1px solid ${d.b}`,fontFamily:"inherit",fontSize:12,cursor:"pointer"}}>skip</button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Interstitial Ad ───────────────────────────────────────────────────────────
-function InterstitialAd({onClose,d}){
-  const [secs,setSecs]=useState(5);
-  useEffect(()=>{
-    const t=setInterval(()=>setSecs(s=>{if(s<=1){clearInterval(t);return 0;}return s-1;}),1000);
-    return()=>clearInterval(t);
-  },[]);
-  return(
-    <div style={{position:"fixed",inset:0,zIndex:190,background:"rgba(0,0,0,.92)",display:"flex",alignItems:"center",justifyContent:"center",backdropFilter:"blur(6px)"}}>
-      <div style={{width:420,background:d.card,borderRadius:16,overflow:"hidden",border:`1px solid ${d.b}`}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"12px 16px",borderBottom:`1px solid ${d.b}`}}>
-          <span style={{fontSize:10,color:d.t4,letterSpacing:".06em",textTransform:"uppercase"}}>advertisement</span>
-          <button onClick={secs===0?onClose:undefined} disabled={secs>0}
-            style={{padding:"5px 13px",borderRadius:6,background:secs===0?"#5eaa8a":d.hover,color:secs===0?"#fff":d.t4,border:"none",fontFamily:"inherit",fontSize:11,cursor:secs===0?"pointer":"not-allowed",transition:"all .2s",fontWeight:secs===0?600:400}}>
-            {secs>0?`close in ${secs}s`:"close ✕"}
-          </button>
-        </div>
-        <div style={{height:250,background:d.hover,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:8}}>
-          {ADSENSE_READY?(
-            <ins className="adsbygoogle" style={{display:"block",width:"100%",height:"250px"}} data-ad-client={ADSENSE_PUB} data-ad-slot={AD_SLOTS.interstitial} data-ad-format="fluid"/>
-          ):(
-            <><div style={{fontSize:36}}>🎯</div><div style={{fontSize:13,color:d.t3,fontWeight:500}}>ad placeholder</div><div style={{fontSize:11,color:d.t4}}>swap with AdSense interstitial unit</div></>
-          )}
-        </div>
-        <div style={{padding:"10px 16px",borderTop:`1px solid ${d.b}`}}>
-          <span style={{fontSize:11,color:d.t4}}>slothr — study less. rank more. nap often.</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Sticky Banner Ad ──────────────────────────────────────────────────────────
-function BannerAd({d}){
-  return(
-    <div style={{position:"fixed",bottom:0,left:0,right:0,zIndex:50,background:d.sb,borderTop:`1px solid ${d.b}`,padding:"6px 16px",display:"flex",alignItems:"center",gap:10,minHeight:52}}>
-      <span style={{fontSize:9,color:d.t4,letterSpacing:".06em",textTransform:"uppercase",flexShrink:0}}>ad</span>
-      {ADSENSE_READY?(
-        <ins className="adsbygoogle" style={{display:"inline-block",flex:1,height:"36px"}} data-ad-client={ADSENSE_PUB} data-ad-slot={AD_SLOTS.interstitial}/>
-      ):(
-        <div style={{flex:1,height:36,background:d.hover,borderRadius:6,display:"flex",alignItems:"center",justifyContent:"center",border:`1px dashed ${d.b}`}}>
-          <span style={{fontSize:11,color:d.t4}}>banner ad — awaiting AdSense approval 🦥</span>
-        </div>
-      )}
-      <span style={{fontSize:9,color:d.t4,flexShrink:0}}>slothr.in</span>
-    </div>
-  );
-}
 
 // ── Placeholder papers — replace questions with real ones from your DB ────────
 const SUBJECT_COLORS = { Physics:"#e8845c", Chemistry:"#5eaa8a", Mathematics:"#7b8ec8" };
@@ -410,6 +374,19 @@ const PAPERS = [
     id:"adv-2022-p2",
     year:"2022", exam:"JEE Advanced", session:"Paper 2",
     shift:"Afternoon (2:30 PM – 5:30 PM)", date:"28 Aug 2022",
+    duration:180, status:"available",
+  },
+  // ── 2025 ─────────────────────────────────────────────────────────────────
+  {
+    id:"adv-2025-p1",
+    year:"2025", exam:"JEE Advanced", session:"Paper 1",
+    shift:"Morning (9:00 AM – 12:00 PM)", date:"18 May 2025",
+    duration:180, status:"available",
+  },
+  {
+    id:"adv-2025-p2",
+    year:"2025", exam:"JEE Advanced", session:"Paper 2",
+    shift:"Afternoon (2:30 PM – 5:30 PM)", date:"18 May 2025",
     duration:180, status:"available",
   },
 
@@ -875,10 +852,10 @@ function ExamInterface({paper,user,questions,onSubmit,onExit,nta}){
       </div>
 
       {/* Main 2-col layout */}
-      <div style={{display:"flex",flex:1,overflow:"hidden",minHeight:0}}>
+      <div style={{display:"flex",flex:1,overflow:"hidden",minHeight:0,height:0}}>
 
         {/* ── Question area ── */}
-        <div style={{flex:1,overflow:"auto",padding:"14px 18px"}}>
+        <div style={{flex:1,overflowY:"auto",overflowX:"hidden",padding:"14px 18px",minHeight:0}}>
           {currentQ&&(
             <>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -886,7 +863,11 @@ function ExamInterface({paper,user,questions,onSubmit,onExit,nta}){
                   Question {currentQ.qno}
                   <span style={{marginLeft:8,fontSize:10.5,fontWeight:400,color:nta.text3,
                     padding:"2px 7px",background:nta.hover,borderRadius:3,border:`1px solid ${nta.border}`}}>
-                    {currentQ.type==="mcq"?"MCQ · +4 / −1":"Integer · +4 / 0"}
+                    {
+                    currentQ.type==="mcq"?"Single Correct · +3/−1":
+                    currentQ.type==="msq"?"Multiple Correct · +4/−2":
+                    "Integer · +4/0"
+                  }
                   </span>
                 </div>
                 <span style={{fontSize:11,color:SEC_COLOR[section],fontWeight:600}}>{section}</span>
@@ -1506,88 +1487,55 @@ function NTAMode({user,dark,onExit,onTestComplete,completedTests,onStoreTest}){
   const [qLoading,setQLoading]=useState(false);
   const [qError,setQError]=useState(null);
 
- async function fetchQuestions(paperId){
-  console.log("🚀 fetchQuestions called with:", paperId);
+  async function fetchQuestions(paperId){
+    setQLoading(true); setQError(null); setQuestions([]);
+    try {
+      // paperId e.g. "adv-2024-p1" — matches slug prefix in Supabase
+      // We derive year + paper from the id
+      const parts = paperId.split("-"); // ["adv","2024","p1"]
+      const year  = parseInt(parts[1]);
+      const paper = parts[2].toUpperCase(); // "P1" or "P2"
+      const shift = paper==="P1"?"Morning":"Evening";
 
-  setQLoading(true); 
-  setQError(null); 
-  setQuestions([]);
+      const params = [
+        "select=*",
+        `year=eq.${year}`,
+        `shift=eq.${shift}`,
+        "exam=eq.JEE%20Advanced",
+        "is_active=eq.true",
+        "is_verified=eq.true",
+        "order=qno.asc",
+      ].join("&");
+      const r = await fetch(`${SB_URL}/rest/v1/questions?${params}`, {
+        headers:{"apikey":SB_ANON,"Authorization":"Bearer "+SB_ANON}
+      });
+      if(!r.ok) throw new Error(await r.text());
+      const raw = await r.json();
 
-  try {
-    const parts = paperId.split("-");
-    console.log("🧩 parts:", parts);
+      // Map Supabase columns → NTA question shape
+      const mapped = raw.map(q=>({
+        id:       q.id,
+        section:  q.subject,           // Physics / Chemistry / Mathematics
+        qno:      q.qno || 1,
+        type:     q.question_type==="SCQ"?"mcq":
+                  q.question_type==="MSQ"?"msq":
+                  q.question_type==="Integer"||q.question_type==="Decimal"?"numerical":"mcq",
+        text:     q.question_text,
+        options:  q.option_a?{A:q.option_a,B:q.option_b,C:q.option_c,D:q.option_d}:null,
+        correct:  q.correct,
+        solution: q.solution,
+        topic:    q.topic,
+        difficulty: q.difficulty,
+        diagram_url: q.diagram_url||null,
+        answer_type: q.answer_type||"text",
+        partial_marks: q.partial_marks||null,
+      }));
 
-    const year  = parseInt(parts[1]);
-    const paper = parts[2]?.toUpperCase();
-    const shift = paper==="P1"?"Morning":"Evening";
-
-    console.log("📅 year:", year, "📄 paper:", paper, "⏰ shift:", shift);
-
-    const params = [
-      "select=*",
-      `year=eq.${year}`,
-      `shift=eq.${shift}`,
-      "exam=eq.JEE%20Advanced",
-      "is_active=eq.true",
-      "is_verified=eq.true",
-      "order=qno.asc",
-    ].join("&");
-
-    const url = `${SB_URL}/rest/v1/questions?${params}`;
-    console.log("🌐 FETCH URL:", url);
-
-    const r = await fetch(url, {
-      headers:{
-        "apikey": SB_ANON,
-        "Authorization": "Bearer " + SB_ANON
-      }
-    });
-
-    console.log("📡 response status:", r.status);
-
-    if(!r.ok){
-      const errText = await r.text();
-      console.error("❌ API ERROR:", errText);
-      throw new Error(errText);
-    }
-
-    const raw = await r.json();
-    console.log("📦 RAW DATA:", raw);
-
-    const mapped = raw.map(q=>({
-      id: q.id,
-      section: q.subject,
-      qno: q.qno || 1,
-      type: q.question_type==="SCQ"?"mcq":
-            q.question_type==="MSQ"?"msq":
-            q.question_type==="Integer"||q.question_type==="Decimal"?"numerical":"mcq",
-      text: q.question_text,
-      options: q.option_a?{A:q.option_a,B:q.option_b,C:q.option_c,D:q.option_d}:null,
-      correct: q.correct,
-      solution: q.solution,
-      topic: q.topic,
-      difficulty: q.difficulty,
-      diagram_url: q.diagram_url||null,
-      answer_type: q.answer_type||"text",
-      partial_marks: q.partial_marks||null,
-    }));
-
-    console.log("✅ MAPPED:", mapped.length, mapped);
-
-    if(mapped.length===0){
-      console.warn("⚠️ No questions returned from DB");
-      setQError("No questions found for this paper yet.");
-    } else {
-      setQuestions(mapped);
-    }
-
-  } catch(e){
-    console.error("🔥 FETCH FAILED:", e);
-    setQError("Failed to load questions: "+e.message);
+      if(mapped.length===0) setQError("No questions found for this paper yet. Add them in the admin panel.");
+      else setQuestions(mapped);
+    } catch(e){ setQError("Failed to load questions: "+e.message); }
+    setQLoading(false);
   }
-
-  setQLoading(false);
-}
 
   function handleStart(p){
     setSelectedPaper(p);
@@ -1678,46 +1626,196 @@ function NTAMode({user,dark,onExit,onTestComplete,completedTests,onStoreTest}){
 
 
 
+
+// ── Auth Screen ───────────────────────────────────────────────────────────────
+function AuthScreen({onAuth}) {
+  const [mode, setMode] = useState("login"); // login | signup
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleSubmit() {
+    if(!email||!password){setError("fill in both fields.");return;}
+    setLoading(true); setError("");
+    try {
+      let session;
+      if(mode==="login") session = await SB_AUTH.signInEmail(email, password);
+      else session = await SB_AUTH.signUp(email, password);
+      if(mode==="signup") {
+        setError("check your email to confirm your account, then log in.");
+        setMode("login"); setLoading(false); return;
+      }
+      localStorage.setItem("slothr_auth", JSON.stringify({
+        access_token: session.access_token,
+        refresh_token: session.refresh_token,
+        expires_at: Date.now() + session.expires_in * 1000,
+        user: session.user,
+      }));
+      onAuth(session);
+    } catch(e) { setError(e.message); }
+    setLoading(false);
+  }
+
+  function handleGoogle() { SB_AUTH.signInGoogle(); }
+
+  const inputStyle = {
+    width:"100%", padding:"11px 14px", border:"1px solid rgba(255,255,255,.12)",
+    borderRadius:6, background:"rgba(255,255,255,.06)", color:"#f5f0e8",
+    fontSize:14, fontFamily:"'DM Sans',sans-serif", outline:"none", boxSizing:"border-box",
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"#0e0d0b",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div style={{width:"100%",maxWidth:400}}>
+        {/* Logo */}
+        <div style={{textAlign:"center",marginBottom:40}}>
+          <div style={{fontSize:42,marginBottom:8}}>🦥</div>
+          <div style={{fontSize:28,fontWeight:900,letterSpacing:"-.06em",color:"#f5f0e8",fontFamily:"'DM Serif Display',serif"}}>
+            sloth<span style={{color:"#e8723c"}}>r</span>
+          </div>
+          <div style={{fontSize:12,color:"#8a8070",marginTop:4}}>your smartest situationship.</div>
+        </div>
+
+        {/* Google button */}
+        <button onClick={handleGoogle}
+          style={{width:"100%",padding:"12px",borderRadius:6,background:"#fff",color:"#1a1510",
+            border:"none",fontSize:14,fontWeight:600,cursor:"pointer",marginBottom:16,
+            display:"flex",alignItems:"center",justifyContent:"center",gap:10,fontFamily:"'DM Sans',sans-serif"}}>
+          <svg width="18" height="18" viewBox="0 0 18 18"><path fill="#4285F4" d="M16.51 8H8.98v3h4.3c-.18 1-.74 1.48-1.6 2.04v2.01h2.6a7.8 7.8 0 0 0 2.38-5.88c0-.57-.05-.66-.15-1.18z"/><path fill="#34A853" d="M8.98 17c2.16 0 3.97-.72 5.3-1.94l-2.6-2a4.8 4.8 0 0 1-7.18-2.54H1.83v2.07A8 8 0 0 0 8.98 17z"/><path fill="#FBBC05" d="M4.5 10.52a4.8 4.8 0 0 1 0-3.04V5.41H1.83a8 8 0 0 0 0 7.18l2.67-2.07z"/><path fill="#EA4335" d="M8.98 4.18c1.17 0 2.23.4 3.06 1.2l2.3-2.3A8 8 0 0 0 1.83 5.4L4.5 7.49a4.77 4.77 0 0 1 4.48-3.31z"/></svg>
+          continue with Google
+        </button>
+
+        {/* Divider */}
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+          <div style={{flex:1,height:1,background:"rgba(255,255,255,.08)"}}/>
+          <span style={{fontSize:11,color:"#4a4540"}}>or</span>
+          <div style={{flex:1,height:1,background:"rgba(255,255,255,.08)"}}/>
+        </div>
+
+        {/* Email/password */}
+        <div style={{marginBottom:10}}>
+          <input style={inputStyle} type="email" placeholder="email" value={email}
+            onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()}/>
+        </div>
+        <div style={{marginBottom:16}}>
+          <input style={inputStyle} type="password" placeholder="password" value={password}
+            onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()}/>
+        </div>
+
+        {error&&<div style={{fontSize:12,color:"#d4604a",marginBottom:12,textAlign:"center"}}>{error}</div>}
+
+        <button onClick={handleSubmit} disabled={loading}
+          style={{width:"100%",padding:"12px",borderRadius:6,background:"#e8723c",color:"#fff",
+            border:"none",fontSize:14,fontWeight:700,cursor:loading?"not-allowed":"pointer",
+            opacity:loading?.6:1,fontFamily:"'DM Sans',sans-serif"}}>
+          {loading?"...":(mode==="login"?"log in":"sign up")}
+        </button>
+
+        <div style={{textAlign:"center",marginTop:16,fontSize:12,color:"#8a8070"}}>
+          {mode==="login"?"don't have an account? ":"already have one? "}
+          <span style={{color:"#e8723c",cursor:"pointer"}} onClick={()=>{setMode(m=>m==="login"?"signup":"login");setError("");}}>
+            {mode==="login"?"sign up":"log in"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function App(){
   // ── Ad state ────────────────────────────────────────────────────────────────
-  const [showRewarded,setShowRewarded]=useState(false);
-  const [rewardedCallback,setRewardedCallback]=useState(null); // fn to call after ad
-  const [aiUses,setAiUses]=useState({count:0,date:new Date().toDateString()});
-  const [tabSwitches,setTabSwitches]=useState(0);
-  const [showInterstitial,setShowInterstitial]=useState(false);
-  const [pendingTab,setPendingTab]=useState(null);
 
   // Function to request an AI use — shows rewarded ad if out of free uses
-  function requestAiUse(onGranted){
-    // Give 2 free uses per day without ad
-    if(aiUses.count<2){
-      setAiUses(p=>({...p,count:p.count+1}));
-      onGranted();
-      return;
-    }
-    // Otherwise show rewarded ad
-    setRewardedCallback(()=>()=>{
-      setAiUses(p=>({...p,count:p.count+1}));
-      setShowRewarded(false);
-      onGranted();
-    });
-    setShowRewarded(true);
-  }
+  function requestAiUse(onGranted){ onGranted(); }
 
   // Tab switch with interstitial gate
-  function switchTab(newTab){
-    if(newTab===tab) return;
-    const newCount=tabSwitches+1;
-    setTabSwitches(newCount);
-    if(newCount%INTERSTITIAL_EVERY===0){
-      setPendingTab(newTab);
-      setShowInterstitial(true);
-    } else {
-      setTab(newTab);
-    }
+  function switchTab(newTab){ setTab(newTab); }
+
+  // ── Auth state ─────────────────────────────────────────────────────────────
+  const [authSession, setAuthSession] = useState(()=>{
+    try {
+      const s = localStorage.getItem("slothr_auth");
+      if(!s) return null;
+      const parsed = JSON.parse(s);
+      if(parsed.expires_at && parsed.expires_at < Date.now()) {
+        localStorage.removeItem("slothr_auth");
+        return null;
+      }
+      return parsed;
+    } catch(e) { return null; }
+  });
+
+  const user = authSession ? {
+    name: authSession.user?.user_metadata?.full_name || authSession.user?.email?.split("@")[0] || "Student",
+    email: authSession.user?.email || "",
+    avatar: authSession.user?.user_metadata?.avatar_url || null,
+    id: authSession.user?.id,
+  } : null;
+
+  function handleSignOut() {
+    if(authSession?.access_token) SB_AUTH.signOut(authSession.access_token);
+    else localStorage.removeItem("slothr_auth");
+    setAuthSession(null);
+    setSessions([]); setMocks([]); setGoals([]); setPyqHistory([]); setCompletedTests({});
   }
 
-  const user={name:"Student",email:"student@slothr.in",avatar:null}; // replace with real auth later
+  function handleAuthSuccess(session) {
+    const stored = {
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
+      expires_at: Date.now() + (session.expires_in||3600) * 1000,
+      user: session.user,
+    };
+    localStorage.setItem("slothr_auth", JSON.stringify(stored));
+    setAuthSession(stored);
+  }
+
+  // Handle OAuth redirect (Google)
+  useEffect(()=>{
+    const hash = window.location.hash;
+    if(hash.includes("access_token")) {
+      const params = new URLSearchParams(hash.replace("#","?"));
+      const token = params.get("access_token");
+      const refresh = params.get("refresh_token");
+      const expires = parseInt(params.get("expires_in")||"3600");
+      if(token) {
+        SB_AUTH.getUser(token).then(u=>{
+          if(u) {
+            const stored = {access_token:token,refresh_token:refresh,expires_at:Date.now()+expires*1000,user:u};
+            localStorage.setItem("slothr_auth", JSON.stringify(stored));
+            setAuthSession(stored);
+            window.history.replaceState(null,"",window.location.pathname);
+          }
+        });
+      }
+    }
+  },[]);
+
+  // Load persisted data from Supabase after auth
+  useEffect(()=>{
+    if(!authSession?.access_token || !user?.id) return;
+    const token = authSession.access_token;
+    const uid = user.id;
+    // Load sessions
+    SB_AUTH.loadData("user_sessions", uid, token).then(data=>{
+      if(data?.length) setSessions(data.map(r=>r.data||r));
+    });
+    // Load goals
+    SB_AUTH.loadData("user_goals", uid, token).then(data=>{
+      if(data?.length) setGoals(data.map(r=>r.data||r));
+    });
+    // Load jeClass
+    fetch(`${SB_URL}/rest/v1/user_prefs?user_id=eq.${uid}&select=*`, {
+      headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`}
+    }).then(r=>r.json()).then(data=>{
+      if(data?.[0]?.je_class) setJeClass(data[0].je_class);
+    }).catch(()=>{});
+  },[authSession?.access_token]);
+
+  // Show auth screen if not logged in
+  if(!authSession) return <AuthScreen onAuth={handleAuthSuccess}/>;
+
   const [dark,setDark]=useState(true);
   const [sideOpen,setSideOpen]=useState(true);
   const [tab,setTab]=useState("overview");
@@ -1776,6 +1874,12 @@ export default function App(){
   const wakeLockRef=useRef(null);
   const timerSecRef=useRef(0); // always-current mirror of timerSec for stopTimer
 
+
+  const [toast, setToast] = useState(null);
+  function showToast(msg) {
+    setToast(msg);
+    setTimeout(()=>setToast(null), 3000);
+  }
   const d=dark?THEME.dark:THEME.light;
   const classTopics=sub=>TOPICS[sub][jeClass]||TOPICS[sub].dropper;
   const subColor=SUBJECT_COLORS[timerSub]||d.a1;
@@ -1884,6 +1988,11 @@ export default function App(){
     return txt;
   }
   async function runCoach(){
+    const uniqueDays = new Set(sessions.map(s=>s.date)).size;
+    if(uniqueDays < 3) {
+      setCoachCards({locked:true, msg:"not enough data yet. log in consistently for 3 days to unlock AI insights."});
+      return;
+    }
     setCoachLoading(true);setCoachCards(null);
     try{
       const ss=Object.entries(totBySub).map(([s,t])=>`${s}:${fmt(t)}`).join(",");
@@ -1899,6 +2008,11 @@ export default function App(){
     setCoachLoading(false);
   }
   async function aiSuggestGoals(){
+    const uniqueDays = new Set(sessions.map(s=>s.date)).size;
+    if(uniqueDays < 3) {
+      showToast("log 3 days of study first. then i'll plan your day. 😏");
+      return;
+    }
     setGoalLoading(true);
     try{
       // ── Study totals ──────────────────────────────────────────────────────
@@ -2080,6 +2194,9 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
     .content{margin-left:${SW}px;flex:1;background:${d.bg};min-height:100vh;transition:margin-left .28s cubic-bezier(.16,1,.3,1);min-width:0;overflow-x:hidden;max-width:100vw;}
     .inner{max-width:1060px;padding:40px 52px;width:100%;}
     /* ── RESPONSIVE ── */
+    @media(min-width:1600px){
+      .inner{padding:28px 60px;}
+    }
     @media(max-width:1100px){
       .inner{padding:32px 32px;}
     }
@@ -2132,7 +2249,7 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
     .s-uinfo{overflow:hidden;opacity:${sideOpen?1:0};transition:opacity .15s;}
 
     /* ── TOPBAR ── */
-    .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 52px;border-bottom:1px solid ${d.b};background:${dark?"rgba(14,13,11,.92)":"rgba(247,244,238,.92)"};position:sticky;top:0;z-index:10;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);min-height:60px;}
+    .topbar{display:flex;align-items:center;justify-content:space-between;padding:0 28px;border-bottom:1px solid ${d.b};background:${dark?"rgba(14,13,11,.92)":"rgba(247,244,238,.92)"};position:sticky;top:0;z-index:10;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);min-height:60px;}
     .ptitle{font-size:18px;font-weight:400;letter-spacing:-.02em;font-family:'DM Serif Display',serif;line-height:1;}
     .psub{font-size:11px;color:${d.t3};margin-top:3px;letter-spacing:.01em;font-style:italic;}
     .tbr{display:flex;align-items:center;gap:7px;}
@@ -2368,7 +2485,15 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
         <div className="ob-title">who are you.</div>
         <div className="ob-sub">study less. rank more. nap often.</div>
         {CLASSES.map(c=>(
-          <div key={c.id} className="class-opt" onClick={()=>setJeClass(c.id)}>
+          <div key={c.id} className="class-opt" onClick={()=>{
+                  setJeClass(c.id);
+                  if(authSession?.access_token && user?.id) {
+                    fetch(`${SB_URL}/rest/v1/user_prefs`,{method:"POST",
+                      headers:{"apikey":SB_ANON,"Authorization":`Bearer ${authSession.access_token}`,"Content-Type":"application/json","Prefer":"resolution=merge-duplicates"},
+                      body:JSON.stringify({user_id:user.id,je_class:c.id})
+                    }).catch(()=>{});
+                  }
+                }}>
             <div className="co-icon">{c.icon}</div>
             <div style={{fontSize:13,fontWeight:500}}>{c.label}</div>
           </div>
@@ -2526,13 +2651,10 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
   return(
     <>
       {/* ── Ad Modals ── */}
-      {showRewarded&&<MockRewardedAd d={d} onComplete={rewardedCallback} onSkip={()=>setShowRewarded(false)}/>}
-      {showInterstitial&&<InterstitialAd d={d} onClose={()=>{setShowInterstitial(false);if(pendingTab){setTab(pendingTab);setPendingTab(null);}}}/>}
 
       {fullscreen&&renderFS()}
       <div className="layout" style={{visibility:fullscreen?"hidden":"visible",paddingBottom:52}}><style>{css}</style>
       {/* ── Sticky Banner Ad ── */}
-      <BannerAd d={d}/>
 
         <aside className="sidebar">
           <div className="s-logo">
@@ -2586,7 +2708,6 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
             {sideOpen&&(
               <div style={{marginTop:8,padding:"6px 8px",background:d.hover,borderRadius:7,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
                 <span style={{fontSize:10,color:d.t3}}>AI uses today</span>
-                <span style={{fontSize:10,fontWeight:600,color:aiUses.count<2?d.a2:d.gold}}>{aiUses.count<2?`${2-aiUses.count} free left`:"watch an ad to unlock"}</span>
               </div>
             )}
           </div>
@@ -2627,7 +2748,7 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
                 {/* ── Hero stats — editorial wide layout ── */}
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:1,border:`1px solid ${d.b}`,borderRadius:2,overflow:"hidden",marginBottom:32,background:d.b}}>
                   {[
-                    {lbl:"This Week",    val:fmt(weekTime),  hint:`${sessions.filter(s=>s.date>=weekStart).length} sessions. i saw every one. don't think i didn't notice.`,     color:d.a1},
+                    {lbl:"This Week",    val:fmt(weekTime),  hint:sessions.filter(s=>s.date>=weekStart).length===0?"no sessions this week. i noticed.":sessions.filter(s=>s.date>=weekStart).length===1?"1 session. keep going.":sessions.filter(s=>s.date>=weekStart).length+" sessions this week.",     color:d.a1},
                     {lbl:"Today",        val:fmt(todayTime), hint:todayTime>=360?"okay you're actually good. don't let it go to your head.":"oh you studied 0m? cute.",color:todayTime>=360?d.a2:d.t},
                     {lbl:"Goals",        val:`${todayGoals.filter(g=>g.achieved).length}/${todayGoals.length||0}`, hint:todayGoals.filter(g=>g.achieved).length===todayGoals.length&&todayGoals.length>0?"i knew you had it. always did. 😏":"goals set. bold of you.", color:d.a2},
                     {lbl:"PYQ Accuracy", val:pyqAccuracy!==null?`${pyqAccuracy}%`:"—", hint:pyqAccuracy===null?"uncharted territory.":pyqAccuracy>=80?"okay you're actually good. don't let it go to your head.":"yeah we're fixing this. together.", color:d.a3},
@@ -2731,7 +2852,7 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
                     <div style={{fontFamily:"'DM Serif Display',serif",fontSize:28,fontWeight:400,letterSpacing:"-.02em",color:d.t,marginBottom:6,lineHeight:1.2}}>okay. let's talk about your data.</div>
                     <div style={{fontSize:12,color:d.t3,fontStyle:"italic"}}>let me tell you exactly where you're leaking marks.</div>
                   </div>
-                  <button className="btn btn-d" onClick={()=>requestAiUse(runCoach)} disabled={coachLoading}>{coachLoading?"looking...":"analyse"}</button>
+                  <button className="btn btn-d" onClick={runCoach} disabled={coachLoading}>{coachLoading?"looking...":"analyse"}</button>
                 </div>
                 <div className="g3 mb16">
                   {Object.entries(SUBJECT_COLORS).map(([sub,color])=>{
@@ -2752,7 +2873,14 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
                   })}
                 </div>
                 {!coachCards&&!coachLoading&&(<div className="card empty"><div style={{fontSize:26,marginBottom:10}}>👀</div><div className="et">nothing yet.</div><div className="es">i know your weak spots. i'll be gentle.ng. we fix it today.</div></div>)}
-                {coachLoading&&<div className="card cp">{[100,85,92,78,88,70].map((w,i)=><div key={i} className="shim" style={{width:`${w}%`}}/>)}</div>}
+                {coachCards?.locked&&(
+                  <div className="card cp" style={{textAlign:"center",padding:"32px 24px"}}>
+                    <div style={{fontSize:28,marginBottom:12}}>🔒</div>
+                    <div style={{fontSize:14,fontWeight:600,color:d.t,marginBottom:8}}>not enough data yet.</div>
+                    <div style={{fontSize:12,color:d.t3,lineHeight:1.6}}>{coachCards.msg}</div>
+                  </div>
+                )}
+                {!coachCards?.locked&&coachLoading&&<div className="card cp">{[100,85,92,78,88,70].map((w,i)=><div key={i} className="shim" style={{width:`${w}%`}}/>)}</div>}
                 {coachCards&&(
                   <div className="coach-grid">
                     {coachCards.map((card,i)=>(
@@ -2790,7 +2918,7 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
                   <div className="card cp">
                     <div className="rowb mb12">
                       <div><div style={{fontSize:13,fontWeight:500}}>let me plan your day 😏</div><div style={{fontSize:11,color:d.t3,marginTop:2}}>i know your weak spots. i'll be gentle.</div></div>
-                      <button className="btn btn-d" style={{padding:"7px 12px",fontSize:11.5}} onClick={()=>requestAiUse(aiSuggestGoals)} disabled={goalLoading}>{goalLoading?"looking...":"suggest goals"}</button>
+                      <button className="btn btn-d" style={{padding:"7px 12px",fontSize:11.5}} onClick={aiSuggestGoals} disabled={goalLoading}>{goalLoading?"looking...":"suggest goals"}</button>
                     </div>
                     {goalLoading&&[80,90,75,85].map((w,i)=><div key={i} className="shim" style={{width:`${w}%`}}/>)}
                     {/* Signal breakdown — two bucket framing */}
