@@ -1829,6 +1829,27 @@ export default function App(){
     setAuthSession(stored);
   }
 
+  // Refresh token before it expires
+  useEffect(()=>{
+    if(!authSession?.refresh_token) return;
+    const timeUntilExpiry = (authSession.expires_at||0) - Date.now();
+    const refreshIn = Math.max(0, timeUntilExpiry - 5*60*1000); // refresh 5 mins before expiry
+    const t = setTimeout(async()=>{
+      try {
+        const r = await fetch(`${SB_URL}/auth/v1/token?grant_type=refresh_token`,{
+          method:"POST",
+          headers:{"apikey":SB_ANON,"Content-Type":"application/json"},
+          body:JSON.stringify({refresh_token:authSession.refresh_token})
+        });
+        if(r.ok) {
+          const data = await r.json();
+          handleAuthSuccess(data);
+        }
+      } catch(e){}
+    }, refreshIn);
+    return ()=>clearTimeout(t);
+  },[authSession?.refresh_token]);
+
   // Handle OAuth redirect (Google)
   useEffect(()=>{
     const hash = window.location.hash;
@@ -1871,16 +1892,19 @@ export default function App(){
     SB_AUTH.loadData("user_pyq", uid, token).then(data=>{
       if(data?.length) setPyqHistory(data.map(r=>r.data||r));
     });
-    // Load completedTests — only last 2
-    SB_AUTH.loadData("user_completed", uid, token).then(data=>{
-      if(data?.length) {
-        // data is array sorted by created_at asc, take last 2
-        const last2 = data.slice(-2);
-        const map = {};
-        last2.forEach(r=>{ if(r.paper_id) map[r.paper_id]=r.data; });
-        setCompletedTests(map);
-      }
-    });
+    // Load completedTests — only last 2, only if localStorage is empty
+    const cachedCompleted = (() => { try { return localStorage.getItem("slothr_completed"); } catch(e){ return null; } })();
+    if(!cachedCompleted) {
+      SB_AUTH.loadData("user_completed", uid, token).then(data=>{
+        if(data?.length) {
+          const last2 = data.slice(-2);
+          const map = {};
+          last2.forEach(r=>{ if(r.paper_id) map[r.paper_id]=r.data; });
+          setCompletedTests(map);
+          try { localStorage.setItem("slothr_completed", JSON.stringify(map)); } catch(e){}
+        }
+      });
+    }
     // Load jeClass
     fetch(`${SB_URL}/rest/v1/user_prefs?user_id=eq.${uid}&select=*`, {
       headers:{"apikey":SB_ANON,"Authorization":`Bearer ${token}`}
