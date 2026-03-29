@@ -1815,6 +1815,9 @@ export default function App(){
       localStorage.removeItem("slothr_class");
       localStorage.removeItem("slothr_pyq");
       localStorage.removeItem("slothr_completed");
+      localStorage.removeItem("slothr_sessions");
+      localStorage.removeItem("slothr_mocks");
+      localStorage.removeItem("slothr_goals");
     } catch(e){}
   }
 
@@ -1877,17 +1880,26 @@ export default function App(){
     const token = authSession.access_token;
     const uid = user.id;
     // Load sessions
-    SB_AUTH.loadData("user_sessions", uid, token).then(data=>{
-      if(data?.length) setSessions(data.map(r=>r.data||r));
-    });
+    const cachedSessions = (()=>{try{return localStorage.getItem("slothr_sessions");}catch(e){return null;}})();
+    if(!cachedSessions) {
+      SB_AUTH.loadData("user_sessions", uid, token).then(data=>{
+        if(data?.length) setSessions(data.map(r=>r.data||r));
+      });
+    }
     // Load goals
-    SB_AUTH.loadData("user_goals", uid, token).then(data=>{
-      if(data?.length) setGoals(data.map(r=>r.data||r));
-    });
+    const cachedGoals = (()=>{try{return localStorage.getItem("slothr_goals");}catch(e){return null;}})();
+    if(!cachedGoals) {
+      SB_AUTH.loadData("user_goals", uid, token).then(data=>{
+        if(data?.length) setGoals(data.map(r=>r.data||r));
+      });
+    }
     // Load mocks
-    SB_AUTH.loadData("user_mocks", uid, token).then(data=>{
-      if(data?.length) setMocks(data.map(r=>r.data||r));
-    });
+    const cachedMocks = (()=>{try{return localStorage.getItem("slothr_mocks");}catch(e){return null;}})();
+    if(!cachedMocks) {
+      SB_AUTH.loadData("user_mocks", uid, token).then(data=>{
+        if(data?.length) setMocks(data.map(r=>r.data||r));
+      });
+    }
     // Load pyqHistory — all time for accuracy calculation
     SB_AUTH.loadData("user_pyq", uid, token).then(data=>{
       if(data?.length) setPyqHistory(data.map(r=>r.data||r));
@@ -1921,8 +1933,12 @@ export default function App(){
   const [jeClass,setJeClass]=useState(()=>{
     try { return localStorage.getItem("slothr_class")||null; } catch(e){return null;}
   });
-  const [sessions,setSessions]=useState([]);
-  const [mocks,setMocks]=useState([]); // populated automatically from practice tests
+  const [sessions,setSessions]=useState(()=>{
+    try{const c=localStorage.getItem("slothr_sessions");return c?JSON.parse(c):[];}catch(e){return [];}
+  });
+  const [mocks,setMocks]=useState(()=>{
+    try{const c=localStorage.getItem("slothr_mocks");return c?JSON.parse(c):[];}catch(e){return [];}
+  });
   const [completedTests,setCompletedTests]=useState(()=>{
     try {
       const cached = localStorage.getItem("slothr_completed");
@@ -1979,7 +1995,9 @@ export default function App(){
   }
 
   // Goals
-  const [goals,setGoals]=useState([]);
+  const [goals,setGoals]=useState(()=>{
+    try{const c=localStorage.getItem("slothr_goals");return c?JSON.parse(c):[];}catch(e){return [];}
+  });
   const [goalInput,setGoalInput]=useState("");
   const [goalSub,setGoalSub]=useState("Physics");
   const [goalTopic,setGoalTopic]=useState("");
@@ -2104,6 +2122,15 @@ export default function App(){
   useEffect(()=>{
     try { localStorage.setItem("slothr_pyq", JSON.stringify(pyqHistory)); } catch(e){}
   },[pyqHistory]);
+  useEffect(()=>{
+    try { localStorage.setItem("slothr_sessions", JSON.stringify(sessions)); } catch(e){}
+  },[sessions]);
+  useEffect(()=>{
+    try { localStorage.setItem("slothr_mocks", JSON.stringify(mocks)); } catch(e){}
+  },[mocks]);
+  useEffect(()=>{
+    try { localStorage.setItem("slothr_goals", JSON.stringify(goals)); } catch(e){}
+  },[goals]);
   const barMax=Math.max(...Object.values(totBySub),1);
   const currentMilestone=[...STREAK_MILESTONES].reverse().find(b=>streak>=b.days);
   const nextMilestone=STREAK_MILESTONES.find(b=>b.days>streak);
