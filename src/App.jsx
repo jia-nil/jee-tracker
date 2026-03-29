@@ -1273,57 +1273,110 @@ function ResultScreen({paper,questions,qState,user,onRetry,onBack,nta,dark}){
         {activeTab==="key"&&(
           <div>
             {/* Section + filter bar */}
-            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:16,flexWrap:"wrap"}}>
-              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:20,flexWrap:"wrap"}}>
+              <div style={{display:"flex",gap:4}}>
                 {SECTIONS.map(sec=>(
                   <button key={sec} onClick={()=>setKeySection(sec)}
-                    style={{padding:"6px 14px",borderRadius:3,border:`1px solid ${keySection===sec?SEC_COLOR[sec]:nta.border}`,
+                    style={{padding:"7px 16px",borderRadius:3,border:`1px solid ${keySection===sec?SEC_COLOR[sec]:nta.border}`,
                       background:keySection===sec?`${SEC_COLOR[sec]}15`:"transparent",
                       color:keySection===sec?SEC_COLOR[sec]:nta.text3,
-                      fontFamily:"Arial",fontSize:11,fontWeight:700,cursor:"pointer"}}>
+                      fontFamily:"Arial",fontSize:12,fontWeight:700,cursor:"pointer"}}>
                     {sec}
                   </button>
                 ))}
               </div>
-              <div style={{display:"flex",gap:4,marginLeft:"auto",flexWrap:"wrap"}}>
-                {[["all","All"],["wrong","Wrong Only"],["unattempted","Skipped"]].map(([v,l])=>(
+              <div style={{display:"flex",gap:4,marginLeft:"auto"}}>
+                {[["all","All"],["wrong","✗ Wrong"],["unattempted","— Skipped"]].map(([v,l])=>(
                   <button key={v} onClick={()=>setKeyFilter(v)}
-                    style={{padding:"5px 12px",borderRadius:3,border:`1px solid ${keyFilter===v?nta.header:nta.border}`,
+                    style={{padding:"6px 12px",borderRadius:3,border:`1px solid ${keyFilter===v?nta.header:nta.border}`,
                       background:keyFilter===v?`${nta.header}15`:"transparent",
                       color:keyFilter===v?nta.header:nta.text3,
-                      fontFamily:"Arial",fontSize:10.5,fontWeight:600,cursor:"pointer"}}>
+                      fontFamily:"Arial",fontSize:11,fontWeight:600,cursor:"pointer"}}>
                     {l}
                   </button>
                 ))}
               </div>
             </div>
+
+            {/* Summary strip */}
+            {(()=>{
+              const allSec = questions.filter(q=>q.section===keySection);
+              const correct = allSec.filter(q=>qState[q.id]?.answer===q.correct).length;
+              const wrong = allSec.filter(q=>qState[q.id]?.answer&&qState[q.id].answer!==q.correct).length;
+              const skipped = allSec.filter(q=>!qState[q.id]?.answer).length;
+              return(
+                <div style={{display:"flex",gap:8,marginBottom:20}}>
+                  {[
+                    {l:"Correct",v:correct,c:nta.answered},
+                    {l:"Wrong",v:wrong,c:nta.notAnswered},
+                    {l:"Skipped",v:skipped,c:nta.text3},
+                  ].map(s=>(
+                    <div key={s.l} onClick={()=>setKeyFilter(s.l==="Correct"?"all":s.l==="Wrong"?"wrong":"unattempted")}
+                      style={{flex:1,padding:"12px 16px",borderRadius:4,border:`1.5px solid ${s.c}22`,
+                        background:`${s.c}0e`,cursor:"pointer",textAlign:"center"}}>
+                      <div style={{fontSize:22,fontWeight:700,color:s.c,fontFamily:"'DM Serif Display',serif"}}>{s.v}</div>
+                      <div style={{fontSize:10,color:nta.text3,marginTop:2,fontWeight:600,letterSpacing:".06em",textTransform:"uppercase"}}>{s.l}</div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             {keyQs.length===0&&(
-              <div style={{textAlign:"center",padding:"32px",color:nta.text3,fontStyle:"italic"}}>
-                okay you're actually good. don't let it go to your head. nothing to fix.
+              <div style={{textAlign:"center",padding:"48px",color:nta.text3}}>
+                <div style={{fontSize:28,marginBottom:8}}>✓</div>
+                <div style={{fontSize:14,fontWeight:600,color:nta.text}}>okay you're actually good.</div>
+                <div style={{fontSize:12,marginTop:4}}>nothing to fix here.</div>
               </div>
             )}
-            {keyQs.map(q=>{
+
+            {keyQs.map((q,idx)=>{
               const userAns=qState[q.id]?.answer;
               const isCorrect=userAns===q.correct;
               const attempted=userAns!=null;
               const statusC=!attempted?nta.text3:isCorrect?nta.answered:nta.notAnswered;
-              const statusLabel=!attempted?"skipped":isCorrect?"✓ correct":"✗ wrong";
+              const statusIcon=!attempted?"—":isCorrect?"✓":"✗";
               const marksLabel=!attempted?"±0":isCorrect?"+4":q.type==="mcq"?"−1":"±0";
               return(
-                <div key={q.id}
-                  onClick={()=>setFullscreenQ(q.id)}
-                  style={{marginBottom:6,border:`1px solid ${nta.border}`,borderLeft:`4px solid ${statusC}`,
-                    borderRadius:3,background:nta.card,cursor:"pointer",transition:"all .12s"}}
-                  onMouseEnter={e=>{e.currentTarget.style.background=dark?"rgba(255,255,255,.03)":"rgba(0,0,0,.015)";e.currentTarget.style.borderColor=statusC+"66";}}
-                  onMouseLeave={e=>{e.currentTarget.style.background=nta.card;e.currentTarget.style.borderColor=nta.border;}}>
-                  <div style={{display:"flex",alignItems:"center",gap:10,padding:"11px 14px"}}>
-                    <span style={{fontSize:11,fontWeight:700,color:nta.text3,flexShrink:0,width:26,textAlign:"right"}}>Q{q.qno}</span>
-                    <span style={{flex:1,fontSize:12.5,color:nta.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{q.text}</span>
-                    <div style={{display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-                      {q.topic&&<span style={{fontSize:9,padding:"2px 6px",borderRadius:3,background:`${SEC_COLOR[q.section]}18`,color:SEC_COLOR[q.section],fontWeight:700,whiteSpace:"nowrap"}}>{q.topic}</span>}
-                      <span style={{fontSize:10,fontWeight:700,color:"#fff",background:statusC,padding:"2px 8px",borderRadius:3,whiteSpace:"nowrap"}}>{marksLabel}</span>
-                      <span style={{fontSize:10.5,color:statusC,fontWeight:600,whiteSpace:"nowrap",minWidth:64,textAlign:"right"}}>{statusLabel}</span>
-                      <span style={{fontSize:11,color:nta.text3,opacity:.4}}>↗</span>
+                <div key={q.id} onClick={()=>setFullscreenQ(q.id)}
+                  style={{marginBottom:8,border:`1px solid ${nta.border}`,
+                    borderLeft:`4px solid ${statusC}`,borderRadius:4,
+                    background:nta.card,cursor:"pointer",overflow:"hidden"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:12,padding:"14px 16px"}}>
+                    {/* Status icon */}
+                    <div style={{width:32,height:32,borderRadius:3,background:`${statusC}18`,
+                      display:"flex",alignItems:"center",justifyContent:"center",
+                      fontSize:16,fontWeight:700,color:statusC,flexShrink:0}}>
+                      {statusIcon}
+                    </div>
+                    {/* Question info */}
+                    <div style={{flex:1,minWidth:0}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4,flexWrap:"wrap"}}>
+                        <span style={{fontSize:11,fontWeight:700,color:nta.text3}}>Q{q.qno}</span>
+                        {q.type&&<span style={{fontSize:9,padding:"2px 6px",borderRadius:3,
+                          background:q.type==="msq"?`${nta.header}20`:q.type==="numerical"?`${nta.answered}20`:`${nta.text3}15`,
+                          color:q.type==="msq"?nta.header:q.type==="numerical"?nta.answered:nta.text3,
+                          fontWeight:700}}>{q.type==="mcq"||q.type==="scq"?"SCQ":q.type==="msq"?"MSQ":"NUM"}</span>}
+                        {q.topic&&<span style={{fontSize:9,padding:"2px 6px",borderRadius:3,
+                          background:`${SEC_COLOR[q.section]}15`,color:SEC_COLOR[q.section],fontWeight:700}}>
+                          {q.topic}
+                        </span>}
+                      </div>
+                      <div style={{fontSize:12.5,color:nta.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"100%"}}>
+                        {q.text?.slice(0,90)}{q.text?.length>90?"…":""}
+                      </div>
+                    </div>
+                    {/* Right side */}
+                    <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:4,flexShrink:0}}>
+                      <span style={{fontSize:12,fontWeight:700,color:statusC}}>{marksLabel}</span>
+                      {attempted&&!isCorrect&&(
+                        <span style={{fontSize:10,color:nta.text3}}>
+                          you: <strong style={{color:nta.notAnswered}}>{userAns}</strong>
+                          {" · "}ans: <strong style={{color:nta.answered}}>{q.correct}</strong>
+                        </span>
+                      )}
+                      {!attempted&&<span style={{fontSize:10,color:nta.answered}}>ans: {q.correct}</span>}
+                      <span style={{fontSize:10,color:nta.text3,opacity:.5}}>tap to review →</span>
                     </div>
                   </div>
                 </div>
@@ -2297,8 +2350,8 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
     /* ── LAYOUT ── */
     .layout{display:flex;min-height:100vh;overflow-x:hidden;max-width:100vw;}
     .sidebar{width:${SW}px;min-height:100vh;background:${d.sb};border-right:1px solid ${d.b};position:fixed;top:0;left:0;display:flex;flex-direction:column;z-index:20;overflow:hidden;transition:width .28s cubic-bezier(.16,1,.3,1);}
-    .content{margin-left:${SW}px;flex:1;background:${d.bg};min-height:100vh;transition:margin-left .28s cubic-bezier(.16,1,.3,1);min-width:0;overflow-x:hidden;max-width:100vw;}
-    .inner{max-width:1060px;padding:40px 52px;width:100%;}
+    .content{margin-left:${SW}px;flex:1;background:${d.bg};min-height:100vh;transition:margin-left .28s cubic-bezier(.16,1,.3,1);min-width:0;overflow-x:hidden;width:calc(100vw - ${SW}px);}
+    .inner{max-width:1060px;padding:40px 52px;width:100%;margin:0 auto;}
     /* ── RESPONSIVE ── */
     @media(min-width:1600px){
       .inner{padding:28px 60px;}
@@ -2760,7 +2813,7 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
       {/* ── Ad Modals ── */}
 
       {fullscreen&&renderFS()}
-      <div className="layout" style={{visibility:fullscreen?"hidden":"visible",paddingBottom:52}}><style>{css}</style>
+      <div className="layout" style={{visibility:fullscreen?"hidden":"visible"}}><style>{css}</style>
       {/* ── Sticky Banner Ad ── */}
 
         <aside className="sidebar">
@@ -2804,7 +2857,7 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
                 <div style={{fontSize:10,color:d.a1}}>{classLabel} · 🦥</div>
               </div>
               {sideOpen&&(
-                <button onClick={()=>{}} title="sign out"
+                <button onClick={handleSignOut} title="sign out"
                   style={{marginLeft:"auto",background:"none",border:"none",color:d.t4,cursor:"pointer",fontSize:14,padding:"2px 4px",flexShrink:0}}
                   onMouseOver={e=>e.target.style.color=d.danger} onMouseOut={e=>e.target.style.color=d.t4}>
                   ⏻
@@ -2812,11 +2865,7 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
               )}
             </div>
             {/* AI uses counter */}
-            {sideOpen&&(
-              <div style={{marginTop:8,padding:"6px 8px",background:d.hover,borderRadius:7,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <span style={{fontSize:10,color:d.t3}}>AI uses today</span>
-              </div>
-            )}
+
           </div>
         </aside>
 
