@@ -1652,7 +1652,7 @@ function NTAMode({user,dark,onExit,onTestComplete,completedTests,onStoreTest}){
   function handleRetry(){setFinalQState(null);setScreen("instructions");}
   function handleBack(){setSelectedPaper(null);setFinalQState(null);setScreen("list");}
 
-  if(screen==="list")         return <PaperList onStart={handleStart} onExit={onExit} nta={nta} completedTests={completedTests} onReview={(paper,result)=>{setSelectedPaper(paper);setFinalQState(result.qState);setScreen("result");}}/>;
+  if(screen==="list")         return <PaperList onStart={handleStart} onExit={onExit} nta={nta} completedTests={completedTests} onReview={(paper,result)=>{setSelectedPaper(paper);setFinalQState(result.qState);if(result.questions?.length) setQuestions(result.questions);setScreen("result");}}/>;
   if(screen==="instructions"){
     if(qLoading) return(
       <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100vh",gap:16,background:nta.bg}}>
