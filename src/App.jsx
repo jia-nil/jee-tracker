@@ -249,7 +249,7 @@ function renderMath(text) {
 // ── Utility functions ────────────────────────────────────────────────────────
 const fmt  = m=>{if(m==null||m<0)return"0m";if(m===0)return"0m";return m<60?m+"m":Math.floor(m/60)+"h"+(m%60>0?" "+m%60+"m":"");};
 const fmtT = s=>{const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sc=s%60;return h>0?`${h}:${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`:`${String(m).padStart(2,"0")}:${String(sc).padStart(2,"0")}`;};
-const today= ()=>new Date().toISOString().split("T")[0];
+const today= ()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
 function calcStreak(sessions){const days=[...new Set(sessions.map(s=>s.date))].sort().reverse();if(!days.length)return 0;let streak=0,cur=new Date();cur.setHours(0,0,0,0);for(const d of days){const dd=new Date(d);dd.setHours(0,0,0,0);if(Math.round((cur-dd)/86400000)<=1){streak++;cur=dd;}else break;}return streak;}
 
 // ── Select component ──────────────────────────────────────────────────────────
@@ -1840,6 +1840,15 @@ export default function App(){
       expires_at: Date.now() + (session.expires_in||3600) * 1000,
       user: session.user,
     };
+    // If different user is logging in, clear previous user's data
+    const prevAuth = (() => { try { return JSON.parse(localStorage.getItem("slothr_auth")); } catch(e){ return null; } })();
+    if(prevAuth?.user?.id && prevAuth.user.id !== session.user?.id) {
+      ["slothr_sessions","slothr_mocks","slothr_goals","slothr_pyq","slothr_completed","slothr_class"].forEach(k=>{
+        try { localStorage.removeItem(k); } catch(e){}
+      });
+      setSessions([]); setMocks([]); setGoals([]); setPyqHistory([]); setCompletedTests({});
+      try { setJeClass(null); } catch(e){}
+    }
     localStorage.setItem("slothr_auth", JSON.stringify(stored));
     setAuthSession(stored);
   }
@@ -2982,7 +2991,7 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
                 <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:1,border:`1px solid ${d.b}`,borderRadius:2,overflow:"hidden",marginBottom:32,background:d.b}}>
                   {[
                     {lbl:"This Week",    val:fmt(weekTime),  hint:sessions.filter(s=>s.date>=weekStart).length===0?"no sessions this week. i noticed.":sessions.filter(s=>s.date>=weekStart).length===1?"1 session. keep going.":sessions.filter(s=>s.date>=weekStart).length+" sessions this week.",     color:d.a1},
-                    {lbl:"Today",        val:fmt(todayTime), hint:todayTime>=360?"okay you're actually good. don't let it go to your head.":"oh you studied 0m? cute.",color:todayTime>=360?d.a2:d.t},
+                    {lbl:"Today",        val:fmt(todayTime), hint:todayTime===0?"oh you studied 0m? cute.":todayTime>=360?"okay you're actually good. don't let it go to your head.":`${fmt(todayTime)} logged. i saw every minute.`,color:todayTime>=360?d.a2:d.t},
                     {lbl:"Goals",        val:`${todayGoals.filter(g=>g.achieved).length}/${todayGoals.length||0}`, hint:todayGoals.filter(g=>g.achieved).length===todayGoals.length&&todayGoals.length>0?"i knew you had it. always did. 😏":"goals set. bold of you.", color:d.a2},
                     {lbl:"PYQ Accuracy", val:pyqAccuracy!==null?`${pyqAccuracy}%`:"—", hint:pyqAccuracy===null?"uncharted territory.":pyqAccuracy>=80?"okay you're actually good. don't let it go to your head.":"yeah we're fixing this. together.", color:d.a3},
                   ].map(s=>(
