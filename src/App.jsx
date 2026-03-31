@@ -2745,6 +2745,16 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
           </div>
         ))}
         <div style={{fontSize:10.5,color:d.t4,textAlign:"center",marginTop:12}}>you can change this later.</div>
+        <div style={{textAlign:"center", marginTop:10}}>
+  <a href="/privacy.html" style={{fontSize:11, color:d.t3}}>
+    Privacy Policy
+  </a>
+  {" | "}
+  <a href="/terms.html" style={{fontSize:11, color:d.t3}}>
+    Terms
+  </a>
+</div>
+
       </div>
     </div>
   );
