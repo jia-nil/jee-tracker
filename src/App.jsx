@@ -1719,7 +1719,19 @@ function AuthScreen({onAuth}) {
   };
 
   return (
-    <div style={{minHeight:"100vh",background:"#0e0d0b",display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div style={{
+      minHeight:"100vh", width:"100vw",
+      background:"#0e0d0b",
+      display:"flex", alignItems:"center", justifyContent:"center",
+      padding:20, boxSizing:"border-box",
+      fontFamily:"'DM Sans',sans-serif",
+      position:"fixed", inset:0, zIndex:9999,
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@400;500;600;700&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0;}
+        body{background:#0e0d0b;}
+      `}</style>
       <div style={{width:"100%",maxWidth:400}}>
         {/* Logo */}
         <div style={{textAlign:"center",marginBottom:40}}>
@@ -2687,15 +2699,29 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
 
 
   if(!jeClass) return(
-    <div className="onboard"><style>{css}</style>
-      <div className="ob-box">
-        <div className="ob-logo">
-          <span style={{fontSize:28,marginRight:6}}>🦥</span><span style={{fontWeight:900,letterSpacing:"-.04em"}}>sloth</span><span style={{fontWeight:900,letterSpacing:"-.04em",color:d.a1}}>r</span>
+    <div style={{
+      minHeight:"100vh", width:"100vw",
+      background:d.bg, display:"flex",
+      alignItems:"center", justifyContent:"center",
+      padding:20, boxSizing:"border-box",
+      fontFamily:"'DM Sans',sans-serif",
+      position:"fixed", inset:0, zIndex:9999,
+    }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@400;500;600;700&display=swap');*{box-sizing:border-box;margin:0;padding:0;}`}</style>
+      <div style={{width:"100%",maxWidth:400}}>
+        <div style={{fontSize:28,fontWeight:900,color:d.t,marginBottom:28,letterSpacing:"-.05em",fontFamily:"'DM Serif Display',serif"}}>
+          <span style={{fontSize:32,marginRight:6}}>🦥</span>sloth<span style={{color:d.a1}}>r</span>
         </div>
-        <div className="ob-title">who are you.</div>
-        <div className="ob-sub">study less. rank more. nap often.</div>
+        <div style={{fontSize:22,fontWeight:600,letterSpacing:"-.03em",color:d.t,marginBottom:4}}>who are you.</div>
+        <div style={{fontSize:13,color:d.t3,marginBottom:24,lineHeight:1.5}}>study less. rank more. nap often.</div>
         {CLASSES.map(c=>(
-          <div key={c.id} className="class-opt" onClick={()=>{
+          <div key={c.id}
+            style={{display:"flex",alignItems:"center",gap:13,padding:"13px 15px",
+              border:`1.5px solid ${d.b}`,borderRadius:11,cursor:"pointer",
+              marginBottom:8,background:d.card,transition:"border-color .15s"}}
+            onMouseOver={e=>e.currentTarget.style.borderColor=d.bs}
+            onMouseOut={e=>e.currentTarget.style.borderColor=d.b}
+            onClick={()=>{
                   setJeClass(c.id);
                   try { localStorage.setItem("slothr_class", c.id); } catch(e){}
                   if(authSession?.access_token && user?.id) {
@@ -2705,8 +2731,8 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
                     }).catch(()=>{});
                   }
                 }}>
-            <div className="co-icon">{c.icon}</div>
-            <div style={{fontSize:13,fontWeight:500}}>{c.label}</div>
+            <div style={{width:32,height:32,borderRadius:8,background:d.hover,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,flexShrink:0}}>{c.icon}</div>
+            <div style={{fontSize:13,fontWeight:500,color:d.t}}>{c.label}</div>
           </div>
         ))}
         <div style={{fontSize:10.5,color:d.t4,textAlign:"center",marginTop:12}}>you can change this later.</div>
