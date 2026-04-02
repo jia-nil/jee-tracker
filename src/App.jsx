@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import Privacy from "./pages/Privacy";
+
 // ── Supabase config — replace with your project values ───────────────────────
 const SB_URL  = "https://tlmazdrnndylafhfxsrc.supabase.co";
 const SB_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsbWF6ZHJubmR5bGFmaGZ4c3JjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI1ODEwNjAsImV4cCI6MjA4ODE1NzA2MH0.gGPknDEdaGfzDb2JJ2amEY9b33jlbTY3brvbbhvvIWg"; // ← paste your anon key here before committing
@@ -322,6 +322,7 @@ const TABS = [
   {id:"pyq",       label:"Practice",      icon:"◈"},
   {id:"sessions",  label:"Sessions",      icon:"◷"},
   {id:"streaks",   label:"Streaks",       icon:"🔥"},
+  {id:"syllabus",  label:"Syllabus",      icon:"📋"},
 ];
 
 const STREAK_MILESTONES = [
@@ -1696,7 +1697,7 @@ function AuthScreen({onAuth}) {
       if(mode==="login") session = await SB_AUTH.signInEmail(email, password);
       else session = await SB_AUTH.signUp(email, password);
       if(mode==="signup") {
-        setError("check your email to confirm your account, then log in.");
+        setError("account created! you can now log in.");
         setMode("login"); setLoading(false); return;
       }
       localStorage.setItem("slothr_auth", JSON.stringify({
@@ -1764,7 +1765,7 @@ function AuthScreen({onAuth}) {
             onChange={e=>setEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()}/>
         </div>
         <div style={{marginBottom:16}}>
-          <input style={inputStyle} type="password" placeholder="password" value={password}
+          <input style={inputStyle} type="password" placeholder="password (min 6 chars)" value={password}
             onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()}/>
         </div>
 
@@ -1828,6 +1829,7 @@ export default function App(){
       localStorage.removeItem("slothr_pyq");
       localStorage.removeItem("slothr_completed");
       localStorage.removeItem("slothr_sessions");
+      localStorage.removeItem("slothr_syllabus");
       localStorage.removeItem("slothr_mocks");
       localStorage.removeItem("slothr_goals");
     } catch(e){}
@@ -2043,6 +2045,15 @@ export default function App(){
 
   // Coach
   const [coachCards,setCoachCards]=useState(null);
+  const [syllabusStatus,setSyllabusStatus]=useState(()=>{
+    try{const c=localStorage.getItem("slothr_syllabus");return c?JSON.parse(c):{};}catch(e){return {};}
+  });
+  useEffect(()=>{
+    try{localStorage.setItem("slothr_syllabus",JSON.stringify(syllabusStatus));}catch(e){}
+  },[syllabusStatus]);
+  function setSyllabusChapter(sub,topic,status){
+    setSyllabusStatus(prev=>({...prev,[sub+"|"+topic]:status}));
+  }
   const [coachLoading,setCoachLoading]=useState(false);
 
   // Timer
@@ -2745,16 +2756,6 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
           </div>
         ))}
         <div style={{fontSize:10.5,color:d.t4,textAlign:"center",marginTop:12}}>you can change this later.</div>
-        <div style={{textAlign:"center", marginTop:10}}>
-  <a href="/privacy.html" style={{fontSize:11, color:d.t3}}>
-    Privacy Policy
-  </a>
-  {" | "}
-  <a href="/terms.html" style={{fontSize:11, color:d.t3}}>
-    Terms
-  </a>
-</div>
-
       </div>
     </div>
   );
@@ -2978,6 +2979,7 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
                   {tab==="pyq"&&"3 hours. 54 questions. no one to save you."}
                   {tab==="sessions"&&`${sessions.length} sessions · ${fmt(totalTime)} total. not bad.`}
                   {tab==="streaks"&&`${streak} day streak${currentMilestone?" · "+currentMilestone.icon+" "+currentMilestone.label:""}`}
+                  {tab==="syllabus"&&"track every chapter. i know which ones you're avoiding."}
                 </div>
               </div>
             </div>
@@ -3282,6 +3284,146 @@ Generate a balanced 4-goal mix: roughly 2 from Bucket A (coverage) + 2 from Buck
             )}
 
             {/* ── STREAKS ── */}
+
+            {tab==="syllabus"&&(()=>{
+              // Build full chapter list for the student's class
+              const SUBJECTS_LIST = ["Physics","Chemistry","Mathematics"];
+              // All chapters across all year groups deduplicated
+              const allChapters = sub => {
+                const all = new Set([
+                  ...(TOPICS[sub]["11th"]||[]),
+                  ...(TOPICS[sub]["12th"]||[]),
+                  ...(TOPICS[sub].dropper||[]),
+                ]);
+                return [...all];
+              };
+              const STATUS_OPTS = [
+                {v:"not_started", l:"Not Started", c:d.t4, bg:"transparent"},
+                {v:"in_progress", l:"In Progress", c:d.a3,  bg:d.a3+"18"},
+                {v:"done",        l:"Done",         c:d.a2,  bg:d.a2+"18"},
+                {v:"need_revision",l:"Needs Revision",c:d.a1,bg:d.a1+"18"},
+              ];
+              // Compute stats per chapter
+              const chapterHours = (sub,topic) =>
+                sessions.filter(s=>s.subject===sub&&s.topic===topic)
+                  .reduce((a,s)=>a+(s.duration||0),0);
+              const chapterPyqAcc = (sub,topic) => {
+                const qs = pyqHistory.filter(p=>p.subject===sub&&p.topic===topic);
+                return qs.length ? Math.round(qs.filter(p=>p.correct).length/qs.length*100) : null;
+              };
+              const totalChapters = SUBJECTS_LIST.reduce((a,sub)=>a+allChapters(sub).length,0);
+              const doneCount = Object.values(syllabusStatus).filter(v=>v==="done").length;
+              const inProgCount = Object.values(syllabusStatus).filter(v=>v==="in_progress").length;
+              const revCount = Object.values(syllabusStatus).filter(v=>v==="need_revision").length;
+              const pct = totalChapters>0?Math.round((doneCount/totalChapters)*100):0;
+
+              return(
+                <div className="pin">
+                  {/* Summary strip */}
+                  <div className="card cp mb16">
+                    <div style={{display:"flex",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+                      <div style={{flex:1,minWidth:200}}>
+                        <div className="cl mb10">syllabus coverage</div>
+                        <div style={{display:"flex",alignItems:"baseline",gap:8,marginBottom:10}}>
+                          <span style={{fontSize:42,fontWeight:700,fontFamily:"'DM Serif Display',serif",color:d.a2,letterSpacing:"-.04em"}}>{pct}%</span>
+                          <span style={{fontSize:12,color:d.t3}}>{doneCount} of {totalChapters} chapters done</span>
+                        </div>
+                        <div className="btrack" style={{height:6,borderRadius:3}}>
+                          <div className="bfill" style={{width:`${pct}%`,background:`linear-gradient(90deg,${d.a2},${d.a3})`,borderRadius:3}}/>
+                        </div>
+                      </div>
+                      <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+                        {[
+                          {l:"Done",v:doneCount,c:d.a2},
+                          {l:"In Progress",v:inProgCount,c:d.a3},
+                          {l:"Needs Revision",v:revCount,c:d.a1},
+                          {l:"Not Started",v:totalChapters-doneCount-inProgCount-revCount,c:d.t4},
+                        ].map(s=>(
+                          <div key={s.l} style={{textAlign:"center"}}>
+                            <div style={{fontSize:22,fontWeight:700,color:s.c,fontFamily:"'DM Serif Display',serif"}}>{s.v}</div>
+                            <div style={{fontSize:10,color:d.t3,marginTop:2}}>{s.l}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Per subject chapter grid */}
+                  {SUBJECTS_LIST.map(sub=>(
+                    <div key={sub} style={{marginBottom:28}}>
+                      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+                        <div style={{fontSize:13,fontWeight:700,color:SUBJECT_COLORS[sub]}}>{sub}</div>
+                        <div style={{flex:1,height:1,background:d.b}}/>
+                        <div style={{fontSize:10,color:d.t3}}>
+                          {allChapters(sub).filter(t=>syllabusStatus[sub+"|"+t]==="done").length}/{allChapters(sub).length} done
+                        </div>
+                      </div>
+                      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                        {allChapters(sub).map(topic=>{
+                          const status = syllabusStatus[sub+"|"+topic]||"not_started";
+                          const hrs = chapterHours(sub,topic);
+                          const acc = chapterPyqAcc(sub,topic);
+                          const wt = JEE_WEIGHTAGE[sub]?.[topic]||"M";
+                          const statusOpt = STATUS_OPTS.find(s=>s.v===status)||STATUS_OPTS[0];
+                          return(
+                            <div key={topic} style={{
+                              display:"flex",alignItems:"center",gap:10,
+                              padding:"10px 14px",borderRadius:4,
+                              background:statusOpt.bg||d.card,
+                              border:`1px solid ${status==="not_started"?d.b:statusOpt.c+"40"}`,
+                              transition:"all .15s",
+                            }}>
+                              {/* Weightage badge */}
+                              <div style={{
+                                width:20,height:20,borderRadius:3,flexShrink:0,
+                                background:wt==="H"?`${d.danger}20`:wt==="M"?`${d.gold}20`:`${d.t4}20`,
+                                display:"flex",alignItems:"center",justifyContent:"center",
+                                fontSize:9,fontWeight:700,
+                                color:wt==="H"?d.danger:wt==="M"?d.gold:d.t4,
+                              }}>{wt}</div>
+
+                              {/* Chapter name */}
+                              <div style={{flex:1,minWidth:0}}>
+                                <div style={{fontSize:12.5,fontWeight:500,color:status==="done"?d.t2:d.t,
+                                  textDecoration:status==="done"?"line-through":"none",
+                                  textDecorationColor:d.t4}}>
+                                  {topic}
+                                </div>
+                                <div style={{display:"flex",gap:8,marginTop:3,flexWrap:"wrap"}}>
+                                  {hrs>0&&<span style={{fontSize:10,color:d.t3}}>{fmt(hrs)} studied</span>}
+                                  {acc!==null&&<span style={{fontSize:10,color:acc>=70?d.a2:acc>=40?d.gold:d.danger}}>{acc}% PYQ</span>}
+                                  {hrs===0&&acc===null&&<span style={{fontSize:10,color:d.t4}}>no data yet</span>}
+                                </div>
+                              </div>
+
+                              {/* Status selector */}
+                              <div style={{display:"flex",gap:4,flexShrink:0,flexWrap:"wrap",justifyContent:"flex-end"}}>
+                                {STATUS_OPTS.map(opt=>(
+                                  <button key={opt.v}
+                                    onClick={()=>setSyllabusChapter(sub,topic,opt.v)}
+                                    title={opt.l}
+                                    style={{
+                                      padding:"3px 8px",borderRadius:3,fontSize:10,fontWeight:600,
+                                      cursor:"pointer",border:"1px solid",
+                                      background:status===opt.v?opt.bg:"transparent",
+                                      borderColor:status===opt.v?opt.c:d.b,
+                                      color:status===opt.v?opt.c:d.t4,
+                                      transition:"all .12s",
+                                    }}>
+                                    {opt.v==="not_started"?"—":opt.v==="in_progress"?"▶":opt.v==="done"?"✓":"↺"}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             {tab==="streaks"&&(
               <div className="pin">
                 <div className="streak-hero mb13">
